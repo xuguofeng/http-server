@@ -4,3 +4,5 @@ WebContent/nio/broad/
 # .project
 # .classpath
 # .settings/
+logs/
+lib/
