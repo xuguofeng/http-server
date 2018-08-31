@@ -1,6 +1,9 @@
 package org.net5ijy.nio.http.request;
 
+import java.util.List;
 import java.util.Map;
+
+import org.net5ijy.nio.http.response.Cookie;
 
 /**
  * 封装http请求
@@ -124,4 +127,14 @@ public interface Request {
 	 * @return String - 请求头的值
 	 */
 	String getHeader(String headerName);
+
+	/**
+	 * 获取请求里面携带的cookie<br />
+	 * <br />
+	 * 
+	 * @author 创建人：xuguofeng
+	 * @version 创建于：2018年8月31日 上午11:36:54
+	 * @return
+	 */
+	List<Cookie> getCookies();
 }

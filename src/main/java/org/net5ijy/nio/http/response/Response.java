@@ -60,6 +60,16 @@ public interface Response {
 	void setHeader(String headerName, String headerValue);
 
 	/**
+	 * 添加一个cookie到响应中<br />
+	 * <br />
+	 * 
+	 * @author 创建人：xuguofeng
+	 * @version 创建于：2018年8月31日 上午11:13:17
+	 * @param cookie
+	 */
+	void addCookie(Cookie cookie);
+
+	/**
 	 * 设置响应编码字符集<br />
 	 * <br />
 	 * 如果不显示的调用此方法设置响应字符集，默认使用 {@link org.net5ijy.nio.http.config.ResponseUtil}

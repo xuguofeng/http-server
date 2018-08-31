@@ -11,9 +11,11 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -24,6 +26,7 @@ import org.net5ijy.nio.http.config.ContentTypeUtil;
 import org.net5ijy.nio.http.config.HttpServerConfig;
 import org.net5ijy.nio.http.config.ResponseUtil;
 import org.net5ijy.nio.http.request.Request;
+import org.net5ijy.nio.http.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,6 +44,8 @@ public class HttpResponse implements Response {
 	private int status = 0;
 
 	private Map<String, String> headers = new HashMap<String, String>();
+
+	private List<Cookie> cookies = new ArrayList<Cookie>();
 
 	private FileChannel in;
 	private SocketChannel out;
@@ -130,6 +135,8 @@ public class HttpResponse implements Response {
 		try {
 			this.in = FileChannel.open(Paths.get(config.getRoot(), uri),
 					StandardOpenOption.READ);
+			// 设置Content-Length响应头
+			this.setHeader("Content-Length", String.valueOf(in.size()));
 			// 设置响应状态码200
 			this.setResponseCode(ResponseUtil.RESPONSE_CODE_200);
 		} catch (NoSuchFileException e) {
@@ -179,6 +186,11 @@ public class HttpResponse implements Response {
 			this.writeResponseLine();
 			// 输出Header
 			this.writeHeaders();
+			// 输出全部cookie
+			this.writeCookies();
+
+			// 再输出一个换行，目的是输出一个空白行，下面就是响应主体了
+			this.newLine();
 
 			// 304
 			if (this.status == ResponseUtil.RESPONSE_CODE_304) {
@@ -260,7 +272,60 @@ public class HttpResponse implements Response {
 			this.write(headerContent);
 			this.newLine();
 		}
-		this.newLine();// 再输出一个换行，目的是输出一个空白行，下面就是响应主体了
+	}
+
+	/**
+	 * 把全部cookie写到响应通道<br />
+	 * <br />
+	 * 
+	 * @author 创建人：xuguofeng
+	 * @version 创建于：2018年8月31日 上午11:29:26
+	 * @throws IOException
+	 */
+	private void writeCookies() throws IOException {
+		for (Cookie cookie : this.cookies) {
+			String name = cookie.getName();
+			String value = cookie.getValue();
+			if (StringUtil.isNullOrEmpty(name)
+					|| StringUtil.isNullOrEmpty(value)) {
+				log.warn("Cookie name or value is null");
+				continue;
+			}
+			// 构造cookie响应头
+			StringBuilder s = new StringBuilder("Set-Cookie: ");
+			// cookie名字和值
+			s.append(name);
+			s.append("=");
+			s.append(value);
+			s.append("; ");
+			// 设置过期时间
+			long age = cookie.getAge();
+			if (age > -1) {
+				long expiresTimeStamp = System.currentTimeMillis() + age;
+				s.append("Expires=");
+				s.append(sdf.format(new Date(expiresTimeStamp)));
+				s.append("; ");
+			}
+			// 设置path
+			String path = cookie.getPath();
+			if (!StringUtil.isNullOrEmpty(path)) {
+				s.append("Path=");
+				s.append(path);
+				s.append("; ");
+			}
+			// 设置domain
+			String domain = cookie.getDomain();
+			if (!StringUtil.isNullOrEmpty(domain)) {
+				s.append("Domain=");
+				s.append(domain);
+				s.append("; ");
+			}
+			// http only
+			s.append("HttpOnly");
+			// 写到响应通道
+			this.write(s.toString());
+			this.newLine();
+		}
 	}
 
 	/**
@@ -318,5 +383,10 @@ public class HttpResponse implements Response {
 	public void println(String line) {
 		this.content.append(line);
 		this.content.append("\n");
+	}
+
+	@Override
+	public void addCookie(Cookie cookie) {
+		this.cookies.add(cookie);
 	}
 }

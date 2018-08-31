@@ -11,6 +11,7 @@ import java.nio.channels.SocketChannel;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -18,6 +19,7 @@ import org.net5ijy.nio.http.config.HttpServerConfig;
 import org.net5ijy.nio.http.config.ResponseUtil;
 import org.net5ijy.nio.http.request.HttpRequest;
 import org.net5ijy.nio.http.request.Request;
+import org.net5ijy.nio.http.response.Cookie;
 import org.net5ijy.nio.http.response.HttpResponse;
 import org.net5ijy.nio.http.response.Response;
 import org.net5ijy.nio.http.servlet.Servlet;
@@ -210,6 +212,17 @@ public class HttpServer {
 					// 静态请求
 					resp = new HttpResponse(req, sChannel);
 				}
+
+				// 测试，添加cookie
+				if (req.getCookies().isEmpty()) {
+					Cookie c = new Cookie("sessionId", UUID.randomUUID()
+							.toString(), 60000);
+					resp.addCookie(c);
+					Cookie c2 = new Cookie("sessionId2", UUID.randomUUID()
+							.toString(), 60000);
+					resp.addCookie(c2);
+				}
+
 				// 输出响应
 				resp.response();
 
@@ -218,6 +231,7 @@ public class HttpServer {
 			} finally {
 				// 关闭通道
 				try {
+					sChannel.finishConnect();
 					sChannel.close();
 					socketChannels.remove(sChannel.hashCode());
 					// debug

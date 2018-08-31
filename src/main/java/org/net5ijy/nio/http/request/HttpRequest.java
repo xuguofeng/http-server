@@ -1,9 +1,12 @@
 package org.net5ijy.nio.http.request;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.net5ijy.nio.http.config.ContentTypeUtil;
+import org.net5ijy.nio.http.response.Cookie;
 import org.net5ijy.nio.http.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,6 +28,7 @@ public class HttpRequest implements Request {
 
 	private Map<String, String> parameters = new HashMap<String, String>();
 	private Map<String, String> headers = new HashMap<String, String>();
+	private List<Cookie> cookies = new ArrayList<Cookie>();
 
 	/**
 	 * 根据客户端传来的请求信息初始化Request<br />
@@ -89,6 +93,26 @@ public class HttpRequest implements Request {
 			if (log.isDebugEnabled()) {
 				log.debug(String.format("Request %s header %s = %s",
 						this.requestURI, headerName, headerValue));
+			}
+		}
+
+		// 获取请求cookie
+		String cookieHeader = headers.get("Cookie");
+		if (!StringUtil.isNullOrEmpty(cookieHeader)) {
+			String[] cookiesArray = cookieHeader.split(";\\s*");
+			for (int i = 0; i < cookiesArray.length; i++) {
+				String cookieStr = cookiesArray[i];
+				if (!StringUtil.isNullOrEmpty(cookieStr)) {
+					String[] cookieArray = cookieStr.split("=");
+					if (cookieArray.length == 2) {
+						Cookie c = new Cookie(cookieArray[0], cookieArray[1],
+								-1);
+						this.cookies.add(c);
+						if (log.isDebugEnabled()) {
+							log.debug("Recieve request cookie " + c);
+						}
+					}
+				}
 			}
 		}
 
@@ -212,5 +236,10 @@ public class HttpRequest implements Request {
 	@Override
 	public String getHeader(String headerName) {
 		return this.headers.get(headerName);
+	}
+
+	@Override
+	public List<Cookie> getCookies() {
+		return this.cookies;
 	}
 }
