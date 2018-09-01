@@ -26,7 +26,7 @@ public class ContentTypeUtil {
 	public static final String PNG = "png";
 	public static final String GIF = "gif";
 	public static final String ICO = "ico";
-	public static final String TXT = "text/plain";
+	public static final String TXT = "txt";
 
 	private static final String APPLICATION_OCTET_STREAM = "application/octet-stream";
 

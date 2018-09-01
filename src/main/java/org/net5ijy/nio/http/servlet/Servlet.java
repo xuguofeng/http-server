@@ -6,5 +6,4 @@ import org.net5ijy.nio.http.response.Response;
 public interface Servlet {
 
 	void service(Request request, Response response) throws Exception;
-
 }

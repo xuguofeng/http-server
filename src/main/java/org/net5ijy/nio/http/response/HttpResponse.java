@@ -69,10 +69,9 @@ public class HttpResponse implements Response {
 	 *            - 客户端通道
 	 */
 	public HttpResponse(SocketChannel sChannel) {
-		// 获取GBK字符集
-		Charset c1 = Charset.forName(config.getResponseCharset());
-		// 获取编码器
-		this.encoder = c1.newEncoder();
+		// 获取字符集
+		this.setCharsetEncoding(config.getResponseCharset());
+
 		// 获取Content-Type
 		this.setContentType(ContentTypeUtil
 				.getContentType(ContentTypeUtil.HTML));
