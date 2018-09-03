@@ -1,12 +1,13 @@
 # http-server
 A http server demo developed by java nio
 
+
 ## 1. 运行环境准备
 
 操作系统 - Windows 7 64位操作系统<br />
 JDK - java version "1.8.0_141"<br />
 maven - Apache Maven 3.2.1<br />
-工作目录 - D:\_tmp\<br />
+工作目录 - D:\\_tmp<br />
 
 
 ## 2. clone项目
