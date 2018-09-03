@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>NIO HTTP 服务器</title>
+<style type="text/css">
+.tb tr td {
+	padding: 5px 15px;
+}
+</style>
+</head>
+<body>
+<div style="width: 900px; margin: 0 auto;">
+	<h2>NIO HTTP 服务器说明文档</h2>
+	<h3>1、运行环境准备</h3>
+	<table class="tb" border="1" cellspacing="0" cellpadding="0">
+		<tr>
+			<td>操作系统</td>
+			<td>Windows 7 64位操作系统</td>
+		</tr>
+		<tr>
+			<td>JDK</td>
+			<td>java version "1.8.0_141"</td>
+		</tr>
+		<tr>
+			<td>maven</td>
+			<td>Apache Maven 3.2.1</td>
+		</tr>
+		<tr>
+			<td>工作目录</td>
+			<td>D:\_tmp\</td>
+		</tr>
+	</table>
+	
+	<h3>2、Github地址</h3>
+	<a target="_blank" href="https://github.com/xuguofeng/http-server">https://github.com/xuguofeng/http-server</a>
+	<br /><br />
+	<img src="img/doc1.png" width="900" />
+	
+	<h3>3、从Github上clone项目</h3>
+	<span>D:\_tmp>git clone https://github.com/xuguofeng/http-server.git</span>
+	<br /><br />
+	<img src="img/doc2.png" width="900" />
+	
+	<h3>4、使用maven打包</h3>
+	<span>D:\_tmp>cd http-server</span><br />
+	<span>D:\_tmp\http-server>mvn clean package appassembler:assemble</span>
+	<br /><br />
+	<img src="img/doc3.png" width="900" />
+	
+	<br /><br />
+	执行之后，项目会部署到target/build下面
+	<br /><br />
+	<img src="img/doc4.png" width="900" />
+	
+	<h3>5、目录结构</h3>
+	<table class="tb" border="1" cellspacing="0" cellpadding="0">
+		<tr>
+			<td>conf</td>
+			<td>存放配置文件</td>
+		</tr>
+		<tr>
+			<td>lib</td>
+			<td>存放jar文件</td>
+		</tr>
+		<tr>
+			<td>logs</td>
+			<td>存放日志文件</td>
+		</tr>
+		<tr>
+			<td>tmp</td>
+			<td>存放临时文件</td>
+		</tr>
+		<tr>
+			<td>WebContent</td>
+			<td>部署web站点</td>
+		</tr>
+	</table>
+	
+	<h3>6、部署启动服务</h3>
+	到target/build下<br />
+	
+	首先，修改httpserver.bat文件，第65行<br />
+	set BASEDIR=%~dp0\..<br />
+	改为：<br />
+	set BASEDIR=%~dp0\.<br />
+	<br />
+	<img src="img/doc5.png" width="700" />
+	<br /><br />
+	然后，双击httpserver.bat文件即可启动服务器
+	<br /><br />
+	<img src="img/doc6.png" width="700" />
+	<br /><br />
+	服务器默认部署的根目录是WebContent目录，您可以在这个目录下面创建子目录存放web站点
+	<br /><br />
+	<img src="img/doc7.png" width="700" />
+	
+	<h3>7、浏览器访问</h3>
+	打开浏览器，访问http://localhost:8082/nio/test/index.html
+	<br /><br />
+	<img src="img/doc8.png" width="700" />
+	
+	<h3>8、curl和ab测试</h3>
+	<span>[root@xugf ~]# curl http://10.178.178.195:8082/nio/test/index.html</span>
+	<br /><br />
+	<img src="img/doc9.png" width="500" />
+	<br /><br />
+	<span>[root@xugf ~]# ab -n 500 -c 10 http://10.178.178.195:8082/nio/test/index.html</span>
+	<br /><br />
+	<img src="img/doc10.png" width="500" />
+	<br /><br />
+</div>
+</body>
+</html>
