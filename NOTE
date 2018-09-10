@@ -1,2 +1,6 @@
 http://www.51testing.com/html/28/116228-238337.html
 Http头介绍:Expires,Cache-Control,Last-Modified,ETag
+
+命令
+while true;do ab -n 500 -c 10 http://10.178.178.195:8082/nio/broad/index.html;sleep 5;done
+curl http://10.178.178.195:8082/nio/test/index.html

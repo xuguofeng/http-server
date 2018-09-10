@@ -26,6 +26,8 @@ public class HttpRequest implements Request {
 	private String host = "localhost";
 	private int port = 80;
 
+	private String contentType = "";
+
 	private Map<String, String> parameters = new HashMap<String, String>();
 	private Map<String, String> headers = new HashMap<String, String>();
 	private List<Cookie> cookies = new ArrayList<Cookie>();
@@ -140,6 +142,10 @@ public class HttpRequest implements Request {
 			}
 		}
 
+		// 获取host、port和content-type
+		this.initHostAndPort();
+		this.initContentType();
+
 		// debug
 		if (log.isDebugEnabled()) {
 			log.debug(String.format("Request method is %s", method));
@@ -175,6 +181,43 @@ public class HttpRequest implements Request {
 		return map;
 	}
 
+	/**
+	 * 从Host请求头中获取host和port<br />
+	 * <br />
+	 * 
+	 * @author 创建人：xuguofeng
+	 * @version 创建于：2018年9月10日 上午8:13:36
+	 */
+	private void initHostAndPort() {
+		// 获取Hostqing请求头
+		String hostAndPort = this.headers.get("Host");
+		if (!StringUtil.isNullOrEmpty(hostAndPort)) {
+			this.host = hostAndPort.split(":")[0];
+		}
+		if (!StringUtil.isNullOrEmpty(hostAndPort)
+				&& hostAndPort.indexOf(":") > -1) {
+			this.port = Integer.parseInt(hostAndPort.split(":")[1]);
+		}
+	}
+
+	/**
+	 * 根据请求uri后缀获取Content-Type<br />
+	 * <br />
+	 * 
+	 * @author 创建人：xuguofeng
+	 * @version 创建于：2018年9月10日 上午8:15:25
+	 */
+	private void initContentType() {
+		if (this.requestURI.indexOf(".") == -1) {
+			this.contentType = ContentTypeUtil
+					.getContentType(ContentTypeUtil.HTML);
+		} else {
+			String suffix = this.requestURI.substring(this.requestURI
+					.lastIndexOf(".") + 1);
+			this.contentType = ContentTypeUtil.getContentType(suffix);
+		}
+	}
+
 	@Override
 	public String getMethod() {
 		return this.method;
@@ -192,30 +235,17 @@ public class HttpRequest implements Request {
 
 	@Override
 	public String getHost() {
-		String host = this.headers.get("Host");
-		if (!StringUtil.isNullOrEmpty(host)) {
-			this.host = host.split(":")[0];
-		}
 		return this.host;
 	}
 
 	@Override
 	public int getPort() {
-		String host = this.headers.get("Host");
-		if (!StringUtil.isNullOrEmpty(host) && host.indexOf(":") > -1) {
-			this.port = Integer.parseInt(host.split(":")[1]);
-		}
 		return this.port;
 	}
 
 	@Override
 	public String getContentType() {
-		if (this.requestURI.indexOf(".") == -1) {
-			return ContentTypeUtil.getContentType(ContentTypeUtil.HTML);
-		}
-		String suffix = this.requestURI.substring(this.requestURI
-				.lastIndexOf(".") + 1);
-		return ContentTypeUtil.getContentType(suffix);
+		return this.contentType;
 	}
 
 	@Override
