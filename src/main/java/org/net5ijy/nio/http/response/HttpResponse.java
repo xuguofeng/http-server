@@ -7,9 +7,13 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetEncoder;
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.NoSuchFileException;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.FileTime;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -55,6 +59,8 @@ public class HttpResponse implements Response {
 	// 获取服务器配置
 	HttpServerConfig config = HttpServerConfig.getInstance();
 
+	private Request req;
+
 	static {
 		sdf.setTimeZone(TimeZone.getTimeZone("GMT"));
 	}
@@ -99,6 +105,8 @@ public class HttpResponse implements Response {
 
 		this(sChannel);
 
+		this.req = req;
+
 		// 获取请求资源URI
 		String uri = req.getRequestURI();
 
@@ -132,10 +140,35 @@ public class HttpResponse implements Response {
 	private void getLocalFileChannel(String uri) {
 		// 打开本地文件
 		try {
-			this.in = FileChannel.open(Paths.get(config.getRoot(), uri),
-					StandardOpenOption.READ);
+
+			// 获取资源文件的Path
+			Path path = Paths.get(config.getRoot(), uri);
+			// 获取封装过的文件时间信息
+			FileTime ft = Files.getLastModifiedTime(path,
+					LinkOption.NOFOLLOW_LINKS);
+			// 获取文件最后修改时间的时间戳
+			long t1 = ft.toMillis();
+			String lastModifyDate = sdf.format(new Date(t1));
+
+			// 从请求头获取If-Modified-Since
+			String IfModifiedSince = this.req.getHeader("If-Modified-Since");
+
+			// 文件最后修改时间没有变化
+			if (lastModifyDate.equals(IfModifiedSince)) {
+				// 设置304
+				// 设置响应头Last-Modified
+				this.headers.put("Last-Modified", IfModifiedSince);
+				this.setResponseCode(ResponseUtil.RESPONSE_CODE_304);
+				return; // 返回，不去打开文件通道了
+			}
+
+			this.in = FileChannel.open(path, StandardOpenOption.READ);
 			// 设置Content-Length响应头
 			this.setHeader("Content-Length", String.valueOf(in.size()));
+
+			// 设置响应头Last-Modified
+			this.headers.put("Last-Modified", lastModifyDate);
+
 			// 设置响应状态码200
 			this.setResponseCode(ResponseUtil.RESPONSE_CODE_200);
 		} catch (NoSuchFileException e) {
@@ -154,9 +187,7 @@ public class HttpResponse implements Response {
 			this.closeLocalFileChannel();
 		}
 		// debug
-		if (log.isDebugEnabled()) {
-			log.debug(String.format("Request %s is [%s]", uri, status));
-		}
+		log.info(String.format("Request %s is [%s]", uri, status));
 	}
 
 	@Override
@@ -194,10 +225,8 @@ public class HttpResponse implements Response {
 			// 304
 			if (this.status == ResponseUtil.RESPONSE_CODE_304) {
 				// debug
-				if (log.isDebugEnabled()) {
-					log.debug(String.format("Request handle ok [%s %s]",
-							contentType, status));
-				}
+				log.info(String.format("Request handle ok [%s %s %s]",
+						req.getRequestURI(), contentType, status));
 				return;
 			}
 
@@ -218,10 +247,8 @@ public class HttpResponse implements Response {
 			}
 
 			// debug
-			if (log.isDebugEnabled()) {
-				log.debug(String.format("Request handle ok [%s %s]",
-						contentType, status));
-			}
+			log.info(String.format("Request handle ok [%s %s %s]",
+					req.getRequestURI(), contentType, status));
 		} catch (IOException e) {
 			log.error("", e);
 		} finally {

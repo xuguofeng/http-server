@@ -8,8 +8,13 @@ import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileChannel.MapMode;
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.FileTime;
+import java.util.Date;
 
 import org.junit.Test;
 
@@ -166,5 +171,22 @@ public class TestChannel {
 				e.printStackTrace();
 			}
 		}
+	}
+
+	@Test
+	public void testLastModifyTime() throws Exception {
+
+		// 获取文件路径Path
+		Path p = Paths
+				.get("D:\\workspace\\SpringCloud\\http-server\\WebContent\\404.html");
+		// 获取封装过的文件时间信息
+		FileTime time = Files.getLastModifiedTime(p, LinkOption.NOFOLLOW_LINKS);
+
+		// 获取最后修改时间戳
+		long timestamp = time.toMillis();
+		// 转为Date对象
+		Date d = new Date(timestamp);
+
+		System.out.println(d);
 	}
 }

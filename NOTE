@@ -1,6 +1,9 @@
 http://www.51testing.com/html/28/116228-238337.html
 Http头介绍:Expires,Cache-Control,Last-Modified,ETag
 
+https://blog.csdn.net/eroswang/article/details/8302191
+浏览器缓存详解:expires,cache-control,last-modified,etag详细说明
+
 命令
 while true;do ab -n 500 -c 10 http://10.178.178.195:8082/nio/broad/index.html;sleep 5;done
 curl http://10.178.178.195:8082/nio/test/index.html
