@@ -58,3 +58,9 @@ set BASEDIR=%~dp0\.
 ## 6. 浏览器访问
 
 [http://localhost:8082/doc/index.html](http://localhost:8082/doc/index.html)
+
+
+## 7. 优化记录
+
+2018-09-13 添加了Last-Modified、Expires响应头支持，以及304响应<br /><br />
+2018-10-09 添加Session管理模块<br />

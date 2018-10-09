@@ -23,6 +23,8 @@ import org.net5ijy.nio.http.response.Cookie;
 import org.net5ijy.nio.http.response.HttpResponse;
 import org.net5ijy.nio.http.response.Response;
 import org.net5ijy.nio.http.servlet.Servlet;
+import org.net5ijy.nio.http.session.Session;
+import org.net5ijy.nio.http.session.SessionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -199,29 +201,36 @@ public class HttpServer {
 
 				// 动态请求
 				if (servletClass != null) {
+					// 获取一下session
+					Session session = req.getSession();
 					try {
 						Servlet servlet = servletClass.newInstance();
-						resp = new HttpResponse(sChannel);
+						resp = new HttpResponse(req, sChannel, false);
 						servlet.service(req, resp);
 						resp.setResponseCode(ResponseUtil.RESPONSE_CODE_200);
 					} catch (Exception e) {
 						log.error("", e);
 						resp.setResponseCode(ResponseUtil.RESPONSE_CODE_500);
 					}
+					// 把session的cookie写出去
+					Cookie sessionCookie = new Cookie(
+							ResponseUtil.SESSION_ID_KEY, session.getId(), -1);
+					resp.addCookie(sessionCookie);
+					// 保存session
+					SessionManager m = config.getSessionManager();
+					m.saveSession(session);
 				} else {
 					// 静态请求
-					resp = new HttpResponse(req, sChannel);
+					resp = new HttpResponse(req, sChannel, true);
 				}
 
 				// 测试，添加cookie
-				if (req.getCookies().isEmpty()) {
-					Cookie c = new Cookie("sessionId", UUID.randomUUID()
-							.toString(), 60000);
-					resp.addCookie(c);
-					Cookie c2 = new Cookie("sessionId2", UUID.randomUUID()
-							.toString(), 60000);
-					resp.addCookie(c2);
-				}
+				Cookie c = new Cookie("sessionId",
+						UUID.randomUUID().toString(), 60000);
+				resp.addCookie(c);
+				Cookie c2 = new Cookie("sessionId2", UUID.randomUUID()
+						.toString(), 60000);
+				resp.addCookie(c2);
 
 				// 输出响应
 				resp.response();

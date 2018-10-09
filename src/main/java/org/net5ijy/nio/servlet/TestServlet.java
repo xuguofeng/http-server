@@ -3,11 +3,20 @@ package org.net5ijy.nio.servlet;
 import org.net5ijy.nio.http.request.Request;
 import org.net5ijy.nio.http.response.Response;
 import org.net5ijy.nio.http.servlet.Servlet;
+import org.net5ijy.nio.http.session.Session;
 
 public class TestServlet implements Servlet {
 
 	@Override
 	public void service(Request request, Response response) throws Exception {
+
+		Session s = request.getSession();
+
+		Object user = s.getAttribute("user");
+
+		System.out.println(user);
+
+		s.setAttribute("user", "user");
 
 		response.setContentType("text/html;charset=utf-8");
 

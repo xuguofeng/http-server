@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.net5ijy.nio.http.response.Cookie;
+import org.net5ijy.nio.http.session.Session;
 
 /**
  * 封装http请求
@@ -137,4 +138,14 @@ public interface Request {
 	 * @return
 	 */
 	List<Cookie> getCookies();
+
+	/**
+	 * 获取session<br />
+	 * <br />
+	 * 
+	 * @author 创建人：xuguofeng
+	 * @version 创建于：2018年10月9日 上午10:03:06
+	 * @return
+	 */
+	Session getSession();
 }

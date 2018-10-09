@@ -66,29 +66,6 @@ public class HttpResponse implements Response {
 	}
 
 	/**
-	 * 根据指定的客户端SocketChannel创建HttpResponse<br />
-	 * <br />
-	 * 设置Content-Type、添加响应header<br />
-	 * <br />
-	 * 
-	 * @param sChannel
-	 *            - 客户端通道
-	 */
-	public HttpResponse(SocketChannel sChannel) {
-		// 获取字符集
-		this.setCharsetEncoding(config.getResponseCharset());
-
-		// 获取Content-Type
-		this.setContentType(ContentTypeUtil
-				.getContentType(ContentTypeUtil.HTML));
-		this.headers.put("Date", sdf.format(new Date()));
-		this.headers.put("Server", "nginx");
-		this.headers.put("Connection", "keep-alive");
-		// 客户端输出通道
-		this.out = sChannel;
-	}
-
-	/**
 	 * 根据指定的Request和客户端SocketChannel创建HttpResponse<br />
 	 * <br />
 	 * 内部会获取uri对应的本地资源<br />
@@ -100,27 +77,43 @@ public class HttpResponse implements Response {
 	 *            - 请求对象
 	 * @param sChannel
 	 *            - 客户端通道
+	 * @param isStatic
+	 *            - 是否是静态资源请求
 	 */
-	public HttpResponse(Request req, SocketChannel sChannel) {
+	public HttpResponse(Request req, SocketChannel sChannel, boolean isStatic) {
 
-		this(sChannel);
+		// 获取字符集
+		this.setCharsetEncoding(config.getResponseCharset());
+
+		// 获取Content-Type
+		this.setContentType(ContentTypeUtil
+				.getContentType(ContentTypeUtil.HTML));
+		this.headers.put("Date", sdf.format(new Date()));
+		this.headers.put("Server", "nginx");
+		this.headers.put("Connection", "keep-alive");
+		// 客户端输出通道
+		this.out = sChannel;
 
 		this.req = req;
 
-		// 获取请求资源URI
-		String uri = req.getRequestURI();
+		// 静态资源
+		if (isStatic) {
+			// 获取请求资源URI
+			String uri = req.getRequestURI();
 
-		// 获取本地输入通道
-		this.getLocalFileChannel(uri);
+			// 获取本地输入通道
+			this.getLocalFileChannel(uri);
 
-		// 设置Content-Type
-		this.setContentType(req.getContentType());
+			// 设置Content-Type
+			this.setContentType(req.getContentType());
 
-		// 设置静态资源过期响应头
-		int expires = config.getExpiresMillis(this.contentType);
-		if (expires > 0) {
-			long expiresTimeStamp = System.currentTimeMillis() + expires;
-			this.headers.put("Expires", sdf.format(new Date(expiresTimeStamp)));
+			// 设置静态资源过期响应头
+			int expires = config.getExpiresMillis(this.contentType);
+			if (expires > 0) {
+				long expiresTimeStamp = System.currentTimeMillis() + expires;
+				this.headers.put("Expires",
+						sdf.format(new Date(expiresTimeStamp)));
+			}
 		}
 	}
 

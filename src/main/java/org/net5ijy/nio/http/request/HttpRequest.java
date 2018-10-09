@@ -6,7 +6,10 @@ import java.util.List;
 import java.util.Map;
 
 import org.net5ijy.nio.http.config.ContentTypeUtil;
+import org.net5ijy.nio.http.config.HttpServerConfig;
+import org.net5ijy.nio.http.config.ResponseUtil;
 import org.net5ijy.nio.http.response.Cookie;
+import org.net5ijy.nio.http.session.Session;
 import org.net5ijy.nio.http.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,6 +34,11 @@ public class HttpRequest implements Request {
 	private Map<String, String> parameters = new HashMap<String, String>();
 	private Map<String, String> headers = new HashMap<String, String>();
 	private List<Cookie> cookies = new ArrayList<Cookie>();
+
+	private Session session = null;
+
+	// 获取服务器配置
+	HttpServerConfig config = HttpServerConfig.getInstance();
 
 	/**
 	 * 根据客户端传来的请求信息初始化Request<br />
@@ -271,5 +279,27 @@ public class HttpRequest implements Request {
 	@Override
 	public List<Cookie> getCookies() {
 		return this.cookies;
+	}
+
+	@Override
+	public Session getSession() {
+		if (session == null) {
+			session = config.getSessionManager().getSession(getSessionId());
+		}
+		session.refreshInactiveTime();
+		log.info(String.format("Now is %s, Session %s expires at %s",
+				System.currentTimeMillis(), session.getId(),
+				session.getInactiveTime()));
+		return session;
+	}
+
+	private String getSessionId() {
+		for (Cookie cookie : cookies) {
+			String name = cookie.getName();
+			if (ResponseUtil.SESSION_ID_KEY.equals(name)) {
+				return cookie.getValue();
+			}
+		}
+		return null;
 	}
 }

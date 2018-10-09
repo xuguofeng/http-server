@@ -7,6 +7,8 @@ import java.util.Properties;
 import java.util.Set;
 
 import org.net5ijy.nio.http.servlet.Servlet;
+import org.net5ijy.nio.http.session.MemorySessionManager;
+import org.net5ijy.nio.http.session.SessionManager;
 import org.net5ijy.nio.http.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,6 +31,10 @@ public class HttpServerConfig {
 	private static final String DEFAULT_PAGE_404 = "WebContent/404.html";
 
 	private static final String DEFAULT_CHARSET = "utf-8";
+
+	private static final String DEFAULT_SESSION_MANAGER = "org.net5ijy.nio.http.session.MemorySessionManager";
+
+	private static final String DEFAULT_SESSION_TIMEOUT = "1800";
 
 	/**
 	 * 服务器监听端口
@@ -64,6 +70,8 @@ public class HttpServerConfig {
 	 */
 	private Map<String, Class<? extends Servlet>> urlMappings = new HashMap<String, Class<? extends Servlet>>();
 
+	private SessionManager sessionManager = null;
+
 	private static HttpServerConfig config = new HttpServerConfig();
 
 	/**
@@ -82,6 +90,9 @@ public class HttpServerConfig {
 
 			// 解析配置
 			this.initConfig(p);
+
+			// 配置SessionManager
+			this.initSessionManager(p);
 
 		} catch (IOException e) {
 			log.error("Load server.properties error: ", e);
@@ -185,6 +196,29 @@ public class HttpServerConfig {
 	}
 
 	/**
+	 * 配置SessionManager<br />
+	 * <br />
+	 * 
+	 * @author 创建人：xuguofeng
+	 * @version 创建于：2018年10月9日 上午10:09:29
+	 * @param p
+	 */
+	private void initSessionManager(Properties p) {
+		String managerClassName = p.getProperty("server.session.manager",
+				DEFAULT_SESSION_MANAGER);
+		int timeout = Integer.valueOf(p.getProperty("server.session.timeout",
+				DEFAULT_SESSION_TIMEOUT));
+		try {
+			Class<?> managerClass = Class.forName(managerClassName);
+			sessionManager = (SessionManager) managerClass.newInstance();
+		} catch (Exception e) {
+			log.error(e.getMessage(), e);
+			sessionManager = new MemorySessionManager();
+		}
+		sessionManager.setSessionTimeSeconds(timeout);
+	}
+
+	/**
 	 * 获取服务器配置单实例对象<br />
 	 * <br />
 	 * 
@@ -253,5 +287,9 @@ public class HttpServerConfig {
 
 	public String getResponseCharset() {
 		return this.responseCharset;
+	}
+
+	public SessionManager getSessionManager() {
+		return sessionManager;
 	}
 }

@@ -55,6 +55,11 @@ public class ResponseUtil {
 	public static final String CHARSET = "utf-8";
 
 	/**
+	 * 
+	 */
+	public static final String SESSION_ID_KEY = "JSESSION";
+
+	/**
 	 * 根据指定的响应状态码获取响应首行<br />
 	 * <br />
 	 * 
