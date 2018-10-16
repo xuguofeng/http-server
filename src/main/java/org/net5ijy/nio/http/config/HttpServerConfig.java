@@ -9,7 +9,7 @@ import java.util.Set;
 import org.net5ijy.nio.http.servlet.Servlet;
 import org.net5ijy.nio.http.session.MemorySessionManager;
 import org.net5ijy.nio.http.session.SessionManager;
-import org.net5ijy.nio.http.util.StringUtil;
+import org.net5ijy.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -72,6 +72,8 @@ public class HttpServerConfig {
 
 	private SessionManager sessionManager = null;
 
+	private String templateDir;
+
 	private static HttpServerConfig config = new HttpServerConfig();
 
 	/**
@@ -125,6 +127,22 @@ public class HttpServerConfig {
 					.format("Initialize server ok: [ port=%s, request.charset=%s, response.charset=%s, root=%s, page404=%s ]",
 							this.serverPort, this.requestCharset,
 							this.responseCharset, this.root, this.page404));
+		}
+
+		// 获取动态资源模板配置
+		String templateDir = properties.getProperty("response.template.dir",
+				ResponseUtil.DEFAULT_TEMPLATE_DIR);
+		if (templateDir.startsWith("classpath:")) {
+			templateDir = templateDir.replaceFirst("classpath.", "");
+			this.templateDir = this.getClass().getResource("/" + templateDir)
+					.getPath();
+		} else {
+			this.templateDir = templateDir;
+		}
+
+		// debug
+		if (log.isDebugEnabled()) {
+			log.debug("Initialize template dir: " + this.templateDir);
 		}
 	}
 
@@ -291,5 +309,9 @@ public class HttpServerConfig {
 
 	public SessionManager getSessionManager() {
 		return sessionManager;
+	}
+
+	public String getTemplateDir() {
+		return this.templateDir;
 	}
 }

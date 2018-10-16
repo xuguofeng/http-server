@@ -1,6 +1,7 @@
-package org.net5ijy.nio.http.util;
+package org.net5ijy.util;
 
 import java.io.UnsupportedEncodingException;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
@@ -11,6 +12,12 @@ import java.util.Date;
  * @version 创建于：2018年7月3日 上午11:48:36
  */
 public class StringUtil {
+
+	public static final String DEFAULT_DATE_FORMAT = "yyyy-MM-dd";
+
+	public static final String DEFAULT_DATETIME_FORMAT = "yyyy-MM-dd HH:mm:ss";
+
+	public static final String DEFAULT_TIME_FORMAT = "HH:mm:ss";
 
 	/**
 	 * 首字母转大写
@@ -76,8 +83,8 @@ public class StringUtil {
 		try {
 			return Integer.parseInt(str);
 		} catch (NumberFormatException e) {
+			return defaultVal;
 		}
-		return defaultVal;
 	}
 
 	/**
@@ -103,7 +110,7 @@ public class StringUtil {
 	 * @return
 	 */
 	public static String formatDatetime(Date date) {
-		return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(date);
+		return new SimpleDateFormat(DEFAULT_DATETIME_FORMAT).format(date);
 	}
 
 	/**
@@ -115,7 +122,7 @@ public class StringUtil {
 	 * @return
 	 */
 	public static String formatDate(Date date) {
-		return formatDatetime(date, "yyyy-MM-dd");
+		return formatDatetime(date, DEFAULT_DATE_FORMAT);
 	}
 
 	/**
@@ -127,6 +134,47 @@ public class StringUtil {
 	 * @return
 	 */
 	public static String formatTime(Date date) {
-		return formatDatetime(date, "HH:mm:ss");
+		return formatDatetime(date, DEFAULT_TIME_FORMAT);
+	}
+
+	/**
+	 * 根据指定的格式把字符串转为时间
+	 * 
+	 * @author 创建人：xuguofeng
+	 * @version 创建于：2018年10月13日 上午8:59:40
+	 * @param formatDate
+	 * @param format
+	 * @return
+	 */
+	public static Date parseDateTime(String formatDate, String format) {
+		try {
+			return new SimpleDateFormat(format).parse(formatDate);
+		} catch (ParseException e) {
+			throw new RuntimeException(e.getMessage(), e);
+		}
+	}
+
+	/**
+	 * 根据默认格式把字符串转为时间：yyyy-MM-dd HH:mm:ss
+	 * 
+	 * @author 创建人：xuguofeng
+	 * @version 创建于：2018年10月13日 上午9:02:37
+	 * @param formatDate
+	 * @return
+	 */
+	public static Date parseDateTime(String formatDate) {
+		return parseDateTime(formatDate, DEFAULT_DATETIME_FORMAT);
+	}
+
+	/**
+	 * 根据默认格式把字符串转为日期：yyyy-MM-dd
+	 * 
+	 * @author 创建人：xuguofeng
+	 * @version 创建于：2018年10月13日 上午9:02:37
+	 * @param formatDate
+	 * @return
+	 */
+	public static Date parseDate(String formatDate) {
+		return parseDateTime(formatDate, DEFAULT_DATE_FORMAT);
 	}
 }

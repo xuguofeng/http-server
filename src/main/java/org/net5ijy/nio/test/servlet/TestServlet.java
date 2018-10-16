@@ -1,14 +1,15 @@
-package org.net5ijy.nio.servlet;
+package org.net5ijy.nio.test.servlet;
 
 import org.net5ijy.nio.http.request.Request;
 import org.net5ijy.nio.http.response.Response;
+import org.net5ijy.nio.http.response.view.View;
 import org.net5ijy.nio.http.servlet.Servlet;
 import org.net5ijy.nio.http.session.Session;
 
 public class TestServlet implements Servlet {
 
 	@Override
-	public void service(Request request, Response response) throws Exception {
+	public View service(Request request, Response response) throws Exception {
 
 		Session s = request.getSession();
 
@@ -43,5 +44,7 @@ public class TestServlet implements Servlet {
 		response.println("</form>");
 		response.println("</body>");
 		response.println("</html>");
+
+		return null;
 	}
 }

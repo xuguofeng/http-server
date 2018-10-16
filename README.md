@@ -64,3 +64,4 @@ set BASEDIR=%~dp0\.
 
 2018-09-13 添加了Last-Modified、Expires响应头支持，以及304响应<br />
 2018-10-09 添加Session管理模块<br />
+2018-10-16 优化动态资源解析：资源、视图、模板<br />

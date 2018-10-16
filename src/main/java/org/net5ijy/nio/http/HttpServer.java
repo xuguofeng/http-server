@@ -22,6 +22,7 @@ import org.net5ijy.nio.http.request.Request;
 import org.net5ijy.nio.http.response.Cookie;
 import org.net5ijy.nio.http.response.HttpResponse;
 import org.net5ijy.nio.http.response.Response;
+import org.net5ijy.nio.http.response.view.View;
 import org.net5ijy.nio.http.servlet.Servlet;
 import org.net5ijy.nio.http.session.Session;
 import org.net5ijy.nio.http.session.SessionManager;
@@ -79,10 +80,8 @@ public class HttpServer {
 		ssc.register(selector, SelectionKey.OP_ACCEPT);
 
 		// debug
-		if (log.isDebugEnabled()) {
-			log.debug(String.format("Start http server, listen at: %s",
-					config.getServerPort()));
-		}
+		log.info(String.format("Start http server, listen at: %s",
+				config.getServerPort()));
 
 		while (true) {
 
@@ -206,7 +205,12 @@ public class HttpServer {
 					try {
 						Servlet servlet = servletClass.newInstance();
 						resp = new HttpResponse(req, sChannel, false);
-						servlet.service(req, resp);
+
+						// 执行动态资源方法并获取响应视图
+						View view = servlet.service(req, resp);
+						// 渲染视图
+						resp.render(view);
+
 						resp.setResponseCode(ResponseUtil.RESPONSE_CODE_200);
 					} catch (Exception e) {
 						log.error("", e);

@@ -1,5 +1,7 @@
 package org.net5ijy.nio.http.response;
 
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
@@ -30,7 +32,9 @@ import org.net5ijy.nio.http.config.ContentTypeUtil;
 import org.net5ijy.nio.http.config.HttpServerConfig;
 import org.net5ijy.nio.http.config.ResponseUtil;
 import org.net5ijy.nio.http.request.Request;
-import org.net5ijy.nio.http.util.StringUtil;
+import org.net5ijy.nio.http.response.view.View;
+import org.net5ijy.nio.http.response.view.ViewResovler;
+import org.net5ijy.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,8 +42,10 @@ public class HttpResponse implements Response {
 
 	private static Logger log = LoggerFactory.getLogger(HttpResponse.class);
 
-	private static SimpleDateFormat sdf = new SimpleDateFormat(
+	private SimpleDateFormat sdf = new SimpleDateFormat(
 			"EEE, d MMM yyyy HH:mm:ss 'GMT'", Locale.US);
+
+	private static String viewTemplateDir;
 
 	private CharsetEncoder encoder;
 
@@ -56,13 +62,15 @@ public class HttpResponse implements Response {
 
 	private StringBuilder content = new StringBuilder();
 
+	private String html = null;
+
 	// 获取服务器配置
-	HttpServerConfig config = HttpServerConfig.getInstance();
+	static HttpServerConfig config = HttpServerConfig.getInstance();
 
 	private Request req;
 
 	static {
-		sdf.setTimeZone(TimeZone.getTimeZone("GMT"));
+		viewTemplateDir = config.getTemplateDir();
 	}
 
 	/**
@@ -81,6 +89,8 @@ public class HttpResponse implements Response {
 	 *            - 是否是静态资源请求
 	 */
 	public HttpResponse(Request req, SocketChannel sChannel, boolean isStatic) {
+
+		sdf.setTimeZone(TimeZone.getTimeZone("GMT"));
 
 		// 获取字符集
 		this.setCharsetEncoding(config.getResponseCharset());
@@ -234,6 +244,9 @@ public class HttpResponse implements Response {
 					count = size - pos > 31457280 ? 31457280 : size - pos;
 					pos += in.transferTo(pos, count, out);
 				}
+			} else if (html != null) {
+				// 输出模板解析的html文档
+				this.write(html);
 			} else {
 				// 输出动态程序解析后的字符串
 				this.write(content.toString());
@@ -407,5 +420,27 @@ public class HttpResponse implements Response {
 	@Override
 	public void addCookie(Cookie cookie) {
 		this.cookies.add(cookie);
+	}
+
+	@Override
+	public void render(View view) throws IOException {
+
+		if (view == null) {
+			return;
+		}
+		if (StringUtil.isNullOrEmpty(view.getViewName())) {
+			return;
+		}
+
+		// 获取模板File对象
+		File template = new File(viewTemplateDir + "/" + view.getViewName());
+		if (!template.exists() || !template.isFile()) {
+			throw new FileNotFoundException("Template file not found: "
+					+ viewTemplateDir + "/" + view.getViewName());
+		}
+
+		// 解析视图，获取文件输入流
+		ViewResovler resolver = ViewResovler.getViewResovler();
+		html = resolver.resolveView(template, view.getModel());
 	}
 }

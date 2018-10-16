@@ -3,7 +3,7 @@ package org.net5ijy.nio.http.config;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.net5ijy.nio.http.util.StringUtil;
+import org.net5ijy.util.StringUtil;
 
 @SuppressWarnings("deprecation")
 public class ContentTypeUtil {

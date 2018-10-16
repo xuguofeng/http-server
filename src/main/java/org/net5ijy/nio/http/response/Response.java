@@ -1,6 +1,9 @@
 package org.net5ijy.nio.http.response;
 
+import java.io.IOException;
 import java.nio.channels.SocketChannel;
+
+import org.net5ijy.nio.http.response.view.View;
 
 /**
  * http响应
@@ -126,4 +129,13 @@ public interface Response {
 	 *            - 需要写入到缓冲区的字符串
 	 */
 	void println(String line);
+
+	/**
+	 * 渲染动态资源的响应视图
+	 * 
+	 * @author 创建人：xuguofeng
+	 * @version 创建于：2018年10月16日 上午9:03:58
+	 * @param view
+	 */
+	void render(View view) throws IOException;
 }

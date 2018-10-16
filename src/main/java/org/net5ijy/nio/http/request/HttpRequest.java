@@ -10,7 +10,7 @@ import org.net5ijy.nio.http.config.HttpServerConfig;
 import org.net5ijy.nio.http.config.ResponseUtil;
 import org.net5ijy.nio.http.response.Cookie;
 import org.net5ijy.nio.http.session.Session;
-import org.net5ijy.nio.http.util.StringUtil;
+import org.net5ijy.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
