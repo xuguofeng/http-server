@@ -15,21 +15,33 @@ import org.net5ijy.nio.http.response.Response;
 import org.net5ijy.nio.http.response.view.View;
 import org.net5ijy.nio.http.servlet.Servlet;
 import org.net5ijy.nio.test.bean.User;
+import org.net5ijy.util.StringUtil;
 
 public class UsersServlet implements Servlet {
 
 	@Override
 	public View service(Request request, Response response) throws Exception {
-		List<User> users = getUsers();
+
+		String pageStr = request.getParameter("page");
+		String sizeStr = request.getParameter("size");
+		String username = request.getParameter("username");
+
+		System.out.println(String.format("page = %s, size = %s, username = %s",
+				pageStr, sizeStr, username));
+
+		int page = StringUtil.getInteger(pageStr, 1);
+		int size = StringUtil.getInteger(sizeStr, 10);
+
+		List<User> users = getUsers(page, size);
 		Map<Object, Object> model = new HashMap<Object, Object>();
 		model.put("users", users);
 		View view = new View("user/users.ftl", model);
 		return view;
 	}
 
-	private List<User> getUsers() {
+	private List<User> getUsers(int page, int size) {
 
-		String sql = "select id, username, mobile, email, birthday, create_time from test.mp_user";
+		String sql = "select id, username, mobile, email, birthday, create_time from test.mp_user limit ?, ?";
 
 		Connection conn = null;
 		PreparedStatement prep = null;
@@ -40,6 +52,8 @@ public class UsersServlet implements Servlet {
 			conn = getConnection();
 
 			prep = conn.prepareStatement(sql);
+			prep.setInt(1, (page - 1) * size);
+			prep.setInt(2, size);
 
 			rs = prep.executeQuery();
 

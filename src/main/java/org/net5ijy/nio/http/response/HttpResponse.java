@@ -240,8 +240,11 @@ public class HttpResponse implements Response {
 				long pos = 0;
 				long count = 0;
 
+				long len = -1;
+
 				while (pos < size) {
-					count = size - pos > 31457280 ? 31457280 : size - pos;
+					len = size - pos;
+					count = len > 31457280 ? 31457280 : len;
 					pos += in.transferTo(pos, count, out);
 				}
 			} else if (html != null) {
