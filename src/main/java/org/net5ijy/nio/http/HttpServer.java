@@ -11,7 +11,6 @@ import java.nio.channels.SocketChannel;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -99,41 +98,50 @@ public class HttpServer {
 				SelectionKey sk = i.next();
 
 				// 可连接状态
-				if (sk.isValid() && sk.isAcceptable()) {
-					ServerSocketChannel server = (ServerSocketChannel) sk
-							.channel();
-					SocketChannel clientChannel;
-					try {
-						// 获取客户端channel
-						clientChannel = server.accept();
-						// 设置非阻塞
-						clientChannel.configureBlocking(false);
-						// 把通道注册到Selector
-						clientChannel.register(selector, SelectionKey.OP_READ);
-						// debug
-						log.info(String.format("Accepted connetion from %s:%s",
-								clientChannel.socket().getInetAddress()
-										.getHostAddress(), clientChannel
-										.socket().getPort()));
-					} catch (Exception e) {
-						// debug
-						log.error("Failed to accept new client: ", e);
-					}
-				} else if (sk.isValid() && sk.isReadable()) {// 可读取状态
-					// 获取通道
-					SocketChannel sChannel = (SocketChannel) sk.channel();
-					if (socketChannels.get(sChannel.hashCode()) == null) {
-						socketChannels.put(sChannel.hashCode(), sChannel);
-						tp.execute(new RequestHandler(sk));
-						// debug
-						if (log.isDebugEnabled()) {
-							log.debug(String.format(
-									"Handle request from %s:%s", sChannel
-											.socket().getInetAddress()
-											.getHostAddress(), sChannel
+				try {
+					if (sk.isValid() && sk.isAcceptable()) {
+						ServerSocketChannel server = (ServerSocketChannel) sk
+								.channel();
+						SocketChannel clientChannel;
+						try {
+							// 获取客户端channel
+							clientChannel = server.accept();
+							// 设置非阻塞
+							clientChannel.configureBlocking(false);
+							// 把通道注册到Selector
+							clientChannel.register(selector,
+									SelectionKey.OP_READ);
+							// debug
+							log.info(String.format(
+									"Accepted connetion from %s:%s",
+									clientChannel.socket().getInetAddress()
+											.getHostAddress(), clientChannel
 											.socket().getPort()));
+						} catch (Exception e) {
+							// debug
+							log.error("Failed to accept new client: ", e);
+						}
+					} else if (sk.isValid() && sk.isReadable()) {// 可读取状态
+						// 获取通道
+						SocketChannel sChannel = (SocketChannel) sk.channel();
+						if (socketChannels.get(sChannel.hashCode()) == null) {
+							socketChannels.put(sChannel.hashCode(), sChannel);
+							tp.execute(new RequestHandler(sk));
+							// debug
+							if (log.isDebugEnabled()) {
+								log.debug(String.format(
+										"Handle request from %s:%s", sChannel
+												.socket().getInetAddress()
+												.getHostAddress(), sChannel
+												.socket().getPort()));
+							}
 						}
 					}
+				} catch (Exception e) {
+					sk.cancel();
+					sk = null;
+					// debug
+					log.error(e.getMessage(), e);
 				}
 				i.remove();
 			}
@@ -166,8 +174,8 @@ public class HttpServer {
 				ByteBuffer buf = ByteBuffer.allocate(8192);
 				// 读取数据并解析为字符串
 				String requestBody = null;
-				int len = 0;
-				if ((len = sChannel.read(buf)) > 0) {
+				int len = sChannel.read(buf);
+				if (len > 0) {
 					buf.flip();
 					requestBody = new String(buf.array(), 0, len);
 					buf.clear();
@@ -213,7 +221,7 @@ public class HttpServer {
 
 						resp.setResponseCode(ResponseUtil.RESPONSE_CODE_200);
 					} catch (Exception e) {
-						log.error("", e);
+						log.error(e.getMessage(), e);
 						resp.setResponseCode(ResponseUtil.RESPONSE_CODE_500);
 					}
 					// 把session的cookie写出去
@@ -228,25 +236,20 @@ public class HttpServer {
 					resp = new HttpResponse(req, sChannel, true);
 				}
 
-				// 测试，添加cookie
-				Cookie c = new Cookie("sessionId",
-						UUID.randomUUID().toString(), 60000);
-				resp.addCookie(c);
-				Cookie c2 = new Cookie("sessionId2", UUID.randomUUID()
-						.toString(), 60000);
-				resp.addCookie(c2);
-
 				// 输出响应
 				resp.response();
 
 			} catch (IOException e) {
-				log.error("", e);
+				log.error(e.getMessage(), e);
 			} finally {
 				// 关闭通道
 				try {
-					sChannel.finishConnect();
-					sChannel.close();
+					sk.cancel();
 					socketChannels.remove(sChannel.hashCode());
+					if (sChannel.isConnected()) {
+						sChannel.finishConnect();
+					}
+					sChannel.close();
 					// debug
 					if (log.isDebugEnabled()) {
 						log.debug(String.format("Close connection from %s:%s",
@@ -254,8 +257,9 @@ public class HttpServer {
 										.getHostAddress(), sChannel.socket()
 										.getPort()));
 					}
+					sChannel = null;
 				} catch (IOException e) {
-					log.error("", e);
+					log.error(e.getMessage(), e);
 				}
 			}
 		}

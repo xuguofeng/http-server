@@ -7,6 +7,7 @@ https://blog.csdn.net/eroswang/article/details/8302191
 
 命令
 while true;do ab -n 500 -c 10 http://10.178.178.195:8082/nio/broad/index.html;sleep 5;done
+grep "Complete requests:" ab.2018101916.log | wc -l; grep "Complete requests:      500" ab.2018101916.log | wc -l
 curl http://10.178.178.195:8082/nio/test/index.html
 curl http://10.178.178.195:8082/users.do?username=xugf&page=2&size=10
 curl -X POST -d "page=2&size=10" http://10.178.178.195:8082/users.do?username=xugf

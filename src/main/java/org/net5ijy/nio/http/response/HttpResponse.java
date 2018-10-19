@@ -93,11 +93,10 @@ public class HttpResponse implements Response {
 		sdf.setTimeZone(TimeZone.getTimeZone("GMT"));
 
 		// 获取字符集
-		this.setCharsetEncoding(config.getResponseCharset());
+		setCharsetEncoding(config.getResponseCharset());
 
 		// 获取Content-Type
-		this.setContentType(ContentTypeUtil
-				.getContentType(ContentTypeUtil.HTML));
+		setContentType(ContentTypeUtil.getContentType(ContentTypeUtil.HTML));
 		this.headers.put("Date", sdf.format(new Date()));
 		this.headers.put("Server", "nginx");
 		this.headers.put("Connection", "keep-alive");
@@ -112,10 +111,10 @@ public class HttpResponse implements Response {
 			String uri = req.getRequestURI();
 
 			// 获取本地输入通道
-			this.getLocalFileChannel(uri);
+			getLocalFileChannel(uri);
 
 			// 设置Content-Type
-			this.setContentType(req.getContentType());
+			setContentType(req.getContentType());
 
 			// 设置静态资源过期响应头
 			int expires = config.getExpiresMillis(this.contentType);
@@ -161,33 +160,33 @@ public class HttpResponse implements Response {
 				// 设置304
 				// 设置响应头Last-Modified
 				this.headers.put("Last-Modified", IfModifiedSince);
-				this.setResponseCode(ResponseUtil.RESPONSE_CODE_304);
+				setResponseCode(ResponseUtil.RESPONSE_CODE_304);
 				return; // 返回，不去打开文件通道了
 			}
 
 			this.in = FileChannel.open(path, StandardOpenOption.READ);
 			// 设置Content-Length响应头
-			this.setHeader("Content-Length", String.valueOf(in.size()));
+			setHeader("Content-Length", String.valueOf(in.size()));
 
 			// 设置响应头Last-Modified
 			this.headers.put("Last-Modified", lastModifyDate);
 
 			// 设置响应状态码200
-			this.setResponseCode(ResponseUtil.RESPONSE_CODE_200);
+			setResponseCode(ResponseUtil.RESPONSE_CODE_200);
 		} catch (NoSuchFileException e) {
 			// 没有本地资源被找到
 			log.error("", e);
 			// 设置响应状态码404
-			this.setResponseCode(ResponseUtil.RESPONSE_CODE_404);
+			setResponseCode(ResponseUtil.RESPONSE_CODE_404);
 			// 关闭本地文件通道
-			this.closeLocalFileChannel();
+			closeLocalFileChannel();
 		} catch (IOException e) {
 			// 打开资源时出现异常
 			log.error("", e);
 			// 设置响应状态码500
-			this.setResponseCode(ResponseUtil.RESPONSE_CODE_500);
+			setResponseCode(ResponseUtil.RESPONSE_CODE_500);
 			// 关闭本地文件通道
-			this.closeLocalFileChannel();
+			closeLocalFileChannel();
 		}
 		// debug
 		log.info(String.format("Request %s is [%s]", uri, status));
@@ -201,7 +200,7 @@ public class HttpResponse implements Response {
 	@Override
 	public void setContentType(String contentType) {
 		this.contentType = contentType;
-		this.headers.put("Content-Type", this.contentType);
+		headers.put("Content-Type", this.contentType);
 	}
 
 	@Override
@@ -209,24 +208,24 @@ public class HttpResponse implements Response {
 		// 获取GBK字符集
 		Charset c1 = Charset.forName(charsetName);
 		// 获取编码器
-		this.encoder = c1.newEncoder();
+		encoder = c1.newEncoder();
 	}
 
 	@Override
 	public void response() {
 		try {
 			// 输出响应首行
-			this.writeResponseLine();
+			writeResponseLine();
 			// 输出Header
-			this.writeHeaders();
+			writeHeaders();
 			// 输出全部cookie
-			this.writeCookies();
+			writeCookies();
 
 			// 再输出一个换行，目的是输出一个空白行，下面就是响应主体了
-			this.newLine();
+			newLine();
 
 			// 304
-			if (this.status == ResponseUtil.RESPONSE_CODE_304) {
+			if (status == ResponseUtil.RESPONSE_CODE_304) {
 				// debug
 				log.info(String.format("Request handle ok [%s %s %s]",
 						req.getRequestURI(), contentType, status));
@@ -249,20 +248,20 @@ public class HttpResponse implements Response {
 				}
 			} else if (html != null) {
 				// 输出模板解析的html文档
-				this.write(html);
+				write(html);
 			} else {
 				// 输出动态程序解析后的字符串
-				this.write(content.toString());
+				write(content.toString());
 			}
 
 			// debug
 			log.info(String.format("Request handle ok [%s %s %s]",
 					req.getRequestURI(), contentType, status));
 		} catch (IOException e) {
-			log.error("", e);
+			log.error(e.getMessage(), e);
 		} finally {
 			// 关闭本地文件通道
-			this.closeLocalFileChannel();
+			closeLocalFileChannel();
 		}
 	}
 
@@ -275,7 +274,7 @@ public class HttpResponse implements Response {
 	 * @throws IOException
 	 */
 	private void newLine() throws IOException {
-		this.write("\n");
+		write("\n");
 	}
 
 	/**
@@ -287,8 +286,8 @@ public class HttpResponse implements Response {
 	 * @throws IOException
 	 */
 	private void writeResponseLine() throws IOException {
-		this.write(ResponseUtil.getResponseLine(this.status));
-		this.newLine();
+		write(ResponseUtil.getResponseLine(this.status));
+		newLine();
 	}
 
 	/**
@@ -300,12 +299,12 @@ public class HttpResponse implements Response {
 	 * @throws IOException
 	 */
 	private void writeHeaders() throws IOException {
-		Set<Entry<String, String>> entrys = this.headers.entrySet();
+		Set<Entry<String, String>> entrys = headers.entrySet();
 		for (Iterator<Entry<String, String>> i = entrys.iterator(); i.hasNext();) {
 			Entry<String, String> entry = i.next();
 			String headerContent = entry.getKey() + ": " + entry.getValue();
-			this.write(headerContent);
-			this.newLine();
+			write(headerContent);
+			newLine();
 		}
 	}
 
@@ -318,7 +317,7 @@ public class HttpResponse implements Response {
 	 * @throws IOException
 	 */
 	private void writeCookies() throws IOException {
-		for (Cookie cookie : this.cookies) {
+		for (Cookie cookie : cookies) {
 			String name = cookie.getName();
 			String value = cookie.getValue();
 			if (StringUtil.isNullOrEmpty(name)
@@ -358,8 +357,8 @@ public class HttpResponse implements Response {
 			// http only
 			s.append("HttpOnly");
 			// 写到响应通道
-			this.write(s.toString());
-			this.newLine();
+			write(s.toString());
+			newLine();
 		}
 	}
 
@@ -377,8 +376,8 @@ public class HttpResponse implements Response {
 		CharBuffer cBuf = CharBuffer.allocate(content.length());
 		cBuf.put(content);
 		cBuf.flip();
-		ByteBuffer bBuf = this.encoder.encode(cBuf);
-		this.out.write(bBuf);
+		ByteBuffer bBuf = encoder.encode(cBuf);
+		out.write(bBuf);
 	}
 
 	/**
@@ -390,9 +389,9 @@ public class HttpResponse implements Response {
 	private void closeLocalFileChannel() {
 		try {
 			// 关闭本地文件通道
-			if (this.in != null) {
-				this.in.close();
-				this.in = null;
+			if (in != null) {
+				in.close();
+				in = null;
 			}
 		} catch (IOException e) {
 		}
@@ -401,28 +400,28 @@ public class HttpResponse implements Response {
 	@Override
 	@Deprecated
 	public SocketChannel getOut() {
-		return this.out;
+		return out;
 	}
 
 	@Override
 	public void setHeader(String headerName, String headerValue) {
-		this.headers.put(headerName, headerValue);
+		headers.put(headerName, headerValue);
 	}
 
 	@Override
 	public void print(String line) {
-		this.content.append(line);
+		content.append(line);
 	}
 
 	@Override
 	public void println(String line) {
-		this.content.append(line);
-		this.content.append("\n");
+		content.append(line);
+		content.append("\n");
 	}
 
 	@Override
 	public void addCookie(Cookie cookie) {
-		this.cookies.add(cookie);
+		cookies.add(cookie);
 	}
 
 	@Override
