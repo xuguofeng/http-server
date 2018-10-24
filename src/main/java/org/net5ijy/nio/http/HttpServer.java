@@ -2,8 +2,6 @@ package org.net5ijy.nio.http;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.net.URLDecoder;
-import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
@@ -16,13 +14,13 @@ import java.util.concurrent.Executors;
 
 import org.net5ijy.nio.http.config.HttpServerConfig;
 import org.net5ijy.nio.http.config.ResponseUtil;
+import org.net5ijy.nio.http.filter.FilterChain;
 import org.net5ijy.nio.http.request.HttpRequest;
 import org.net5ijy.nio.http.request.Request;
 import org.net5ijy.nio.http.response.Cookie;
 import org.net5ijy.nio.http.response.HttpResponse;
 import org.net5ijy.nio.http.response.Response;
 import org.net5ijy.nio.http.response.view.View;
-import org.net5ijy.nio.http.servlet.Servlet;
 import org.net5ijy.nio.http.session.Session;
 import org.net5ijy.nio.http.session.SessionManager;
 import org.slf4j.Logger;
@@ -84,67 +82,72 @@ public class HttpServer {
 
 		while (true) {
 
-			int s = selector.select();
-			// 如果没有就绪的通道直接跳过
-			if (s <= 0) {
-				continue;
-			}
-			// 获取已经就绪的通道的SelectionKey的集合
-			Iterator<SelectionKey> i = selector.selectedKeys().iterator();
+			if (selector.select() > 0) {
 
-			while (i.hasNext()) {
+				// 获取已经就绪的通道的SelectionKey的集合
+				Iterator<SelectionKey> i = selector.selectedKeys().iterator();
 
-				// 获取当前遍历到的SelectionKey
-				SelectionKey sk = i.next();
+				while (i.hasNext()) {
 
-				// 可连接状态
-				try {
-					if (sk.isValid() && sk.isAcceptable()) {
-						ServerSocketChannel server = (ServerSocketChannel) sk
-								.channel();
-						SocketChannel clientChannel;
-						try {
-							// 获取客户端channel
-							clientChannel = server.accept();
-							// 设置非阻塞
-							clientChannel.configureBlocking(false);
-							// 把通道注册到Selector
-							clientChannel.register(selector,
-									SelectionKey.OP_READ);
-							// debug
-							log.info(String.format(
-									"Accepted connetion from %s:%s",
-									clientChannel.socket().getInetAddress()
-											.getHostAddress(), clientChannel
-											.socket().getPort()));
-						} catch (Exception e) {
-							// debug
-							log.error("Failed to accept new client: ", e);
-						}
-					} else if (sk.isValid() && sk.isReadable()) {// 可读取状态
-						// 获取通道
-						SocketChannel sChannel = (SocketChannel) sk.channel();
-						if (socketChannels.get(sChannel.hashCode()) == null) {
-							socketChannels.put(sChannel.hashCode(), sChannel);
-							tp.execute(new RequestHandler(sk));
-							// debug
-							if (log.isDebugEnabled()) {
-								log.debug(String.format(
-										"Handle request from %s:%s", sChannel
-												.socket().getInetAddress()
-												.getHostAddress(), sChannel
-												.socket().getPort()));
-							}
-						}
+					// 获取当前遍历到的SelectionKey
+					SelectionKey sk = i.next();
+					// 移除key
+					i.remove();
+
+					try {
+						handle(sk);
+					} catch (Exception e) {
+						sk.cancel();
+						sk = null;
+						// debug
+						log.error(e.getMessage(), e);
 					}
-				} catch (Exception e) {
-					sk.cancel();
-					sk = null;
-					// debug
-					log.error(e.getMessage(), e);
 				}
-				i.remove();
 			}
+		}
+	}
+
+	private void handle(SelectionKey sk) {
+		// 可连接状态
+		if (sk.isValid() && sk.isAcceptable()) {
+			handleAccept(sk);
+		} else if (sk.isValid() && sk.isReadable()) {// 可读取状态
+			handleRead(sk);
+		}
+	}
+
+	private void handleRead(SelectionKey sk) {
+		// 获取通道
+		SocketChannel sChannel = (SocketChannel) sk.channel();
+		if (socketChannels.get(sChannel.hashCode()) == null) {
+			socketChannels.put(sChannel.hashCode(), sChannel);
+			tp.execute(new RequestHandler(sk));
+			// debug
+			if (log.isDebugEnabled()) {
+				log.debug(String.format("Handle request from %s:%s", sChannel
+						.socket().getInetAddress().getHostAddress(), sChannel
+						.socket().getPort()));
+			}
+		}
+	}
+
+	private void handleAccept(SelectionKey sk) {
+		ServerSocketChannel server = (ServerSocketChannel) sk.channel();
+		SocketChannel clientChannel;
+		try {
+			// 获取客户端channel
+			clientChannel = server.accept();
+			// 设置非阻塞
+			clientChannel.configureBlocking(false);
+			// 把通道注册到Selector
+			clientChannel.register(selector, SelectionKey.OP_READ);
+			// debug
+			log.info(String.format("Accepted connetion from %s:%s",
+					clientChannel.socket().getInetAddress().getHostAddress(),
+					clientChannel.socket().getPort()));
+		} catch (Exception e) {
+			// debug
+			log.error("Failed to accept new client: ", e);
 		}
 	}
 
@@ -167,77 +170,41 @@ public class HttpServer {
 		public void run() {
 
 			SocketChannel sChannel = null;
+
 			try {
 				// 获取通道
 				sChannel = (SocketChannel) sk.channel();
-				// 声明保存客户端请求数据的缓冲区
-				ByteBuffer buf = ByteBuffer.allocate(8192);
-				// 读取数据并解析为字符串
-				String requestBody = null;
-				int len = sChannel.read(buf);
-				if (len > 0) {
-					buf.flip();
-					requestBody = new String(buf.array(), 0, len);
-					buf.clear();
-				}
-				if (requestBody == null) {
-					return;
-				}
-
-				// 请求解码
-				requestBody = URLDecoder.decode(requestBody,
-						config.getRequestCharset());
-
-				// debug
-				if (log.isDebugEnabled()) {
-					log.debug(requestBody);
-				}
 
 				// 创建请求对象
-				Request req = new HttpRequest(requestBody);
-
-				// 关闭输入
-				sChannel.shutdownInput();
-
-				// 根据uri获取处理请求的Servlet类型
-				Class<? extends Servlet> servletClass = config.getServlet(req
-						.getRequestURI());
-
+				Request req = new HttpRequest();
 				// 创建响应对象
-				Response resp = null;
+				Response resp = new HttpResponse(req, sChannel);
 
-				// 动态请求
-				if (servletClass != null) {
-					// 获取一下session
-					Session session = req.getSession();
-					try {
-						Servlet servlet = servletClass.newInstance();
-						resp = new HttpResponse(req, sChannel, false);
+				// 解析请求
+				String body = ((HttpRequest) req).resolveRequestBody(sChannel);
 
-						// 执行动态资源方法并获取响应视图
-						View view = servlet.service(req, resp);
-						// 渲染视图
-						resp.render(view);
+				if (body != null) {
 
-						resp.setResponseCode(ResponseUtil.RESPONSE_CODE_200);
-					} catch (Exception e) {
-						log.error(e.getMessage(), e);
-						resp.setResponseCode(ResponseUtil.RESPONSE_CODE_500);
+					req.setCharEncoding(config.getRequestCharset());
+
+					// 关闭输入
+					sChannel.shutdownInput();
+
+					// 根据uri获取处理请求的Filter链
+					FilterChain chain = config.getFilterChain(req
+							.getRequestURI());
+
+					// 动态请求
+					if (chain != null) {
+						dynamicService(req, resp, chain);
+					} else {
+						// 静态请求
+						resp.initLocalResource();
 					}
-					// 把session的cookie写出去
-					Cookie sessionCookie = new Cookie(
-							ResponseUtil.SESSION_ID_KEY, session.getId(), -1);
-					resp.addCookie(sessionCookie);
-					// 保存session
-					SessionManager m = config.getSessionManager();
-					m.saveSession(session);
-				} else {
-					// 静态请求
-					resp = new HttpResponse(req, sChannel, true);
-				}
 
-				// 输出响应
-				resp.response();
+					// 输出响应
+					resp.response();
+				}
 
 			} catch (IOException e) {
 				log.error(e.getMessage(), e);
@@ -246,9 +213,7 @@ public class HttpServer {
 				try {
 					sk.cancel();
 					socketChannels.remove(sChannel.hashCode());
-					if (sChannel.isConnected()) {
-						sChannel.finishConnect();
-					}
+					sChannel.finishConnect();
 					sChannel.close();
 					// debug
 					if (log.isDebugEnabled()) {
@@ -262,6 +227,35 @@ public class HttpServer {
 					log.error(e.getMessage(), e);
 				}
 			}
+		}
+
+		private void dynamicService(Request req, Response resp,
+				FilterChain chain) {
+
+			// 设置响应码
+			resp.setResponseCode(ResponseUtil.RESPONSE_CODE_200);
+
+			// 获取一下session
+			Session session = req.getSession();
+			try {
+				// 执行动态资源方法并获取响应视图
+				View view = chain.doFilter(req, resp);
+				// 渲染视图
+				resp.render(view);
+			} catch (Exception e) {
+				log.error(e.getMessage(), e);
+				resp.setResponseCode(ResponseUtil.RESPONSE_CODE_500);
+			}
+			// 把session的cookie写出去
+			Cookie sessionCookie = getSessionCookie(session);
+			resp.addCookie(sessionCookie);
+			// 保存session
+			SessionManager m = config.getSessionManager();
+			m.saveSession(session);
+		}
+
+		private Cookie getSessionCookie(Session session) {
+			return new Cookie(ResponseUtil.SESSION_ID_KEY, session.getId(), -1);
 		}
 	}
 }

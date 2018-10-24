@@ -1,5 +1,11 @@
 package org.net5ijy.nio.http.request;
 
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
+import java.nio.ByteBuffer;
+import java.nio.channels.SocketChannel;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -37,12 +43,155 @@ public class HttpRequest implements Request {
 
 	private Session session = null;
 
+	private String encoding = "UTF-8";
+
+	private int BUFFER_SIZE = 8192;
+
 	// 获取服务器配置
-	HttpServerConfig config = HttpServerConfig.getInstance();
+	private HttpServerConfig config = HttpServerConfig.getInstance();
+
+	private String requestBody = null;
 
 	/**
-	 * 根据客户端传来的请求信息初始化Request<br />
+	 * 从Host请求头中获取host和port<br />
 	 * <br />
+	 * 
+	 * @author 创建人：xuguofeng
+	 * @version 创建于：2018年9月10日 上午8:13:36
+	 */
+	private void initHostAndPort() {
+		// 获取Hostqing请求头
+		String hostAndPort = headers.get("Host");
+		if (!StringUtil.isNullOrEmpty(hostAndPort)) {
+			host = hostAndPort.split(":")[0];
+		}
+		if (!StringUtil.isNullOrEmpty(hostAndPort)
+				&& hostAndPort.indexOf(":") > -1) {
+			port = Integer.parseInt(hostAndPort.split(":")[1]);
+		}
+	}
+
+	/**
+	 * 根据请求uri后缀获取Content-Type<br />
+	 * <br />
+	 * 
+	 * @author 创建人：xuguofeng
+	 * @version 创建于：2018年9月10日 上午8:15:25
+	 */
+	private void initContentType() {
+		if (requestURI.indexOf(".") == -1) {
+			contentType = ContentTypeUtil.getContentType(ContentTypeUtil.HTML);
+		} else {
+			String suffix = requestURI
+					.substring(requestURI.lastIndexOf(".") + 1);
+			contentType = ContentTypeUtil.getContentType(suffix);
+		}
+	}
+
+	@Override
+	public String getMethod() {
+		return this.method;
+	}
+
+	@Override
+	public String getRequestURI() {
+		return this.requestURI;
+	}
+
+	@Override
+	public String getProtocol() {
+		return this.protocol;
+	}
+
+	@Override
+	public String getHost() {
+		return this.host;
+	}
+
+	@Override
+	public int getPort() {
+		return this.port;
+	}
+
+	@Override
+	public String getContentType() {
+		return this.contentType;
+	}
+
+	@Override
+	public Map<String, String> getParameters() {
+		return this.parameters;
+	}
+
+	@Override
+	public String getParameter(String paramaterName) {
+		return this.parameters.get(paramaterName);
+	}
+
+	@Override
+	public Map<String, String> getHeaders() {
+		return this.headers;
+	}
+
+	@Override
+	public String getHeader(String headerName) {
+		return this.headers.get(headerName);
+	}
+
+	@Override
+	public List<Cookie> getCookies() {
+		return this.cookies;
+	}
+
+	@Override
+	public Session getSession() {
+		if (session == null) {
+			session = config.getSessionManager().getSession(getSessionId());
+		}
+		session.refreshInactiveTime();
+		if (log.isDebugEnabled()) {
+			log.debug(String.format("Now is %s, Session %s expires at %s",
+					System.currentTimeMillis(), session.getId(),
+					session.getInactiveTime()));
+		}
+		return session;
+	}
+
+	private String getSessionId() {
+		for (Cookie cookie : cookies) {
+			String name = cookie.getName();
+			if (ResponseUtil.SESSION_ID_KEY.equals(name)) {
+				return cookie.getValue();
+			}
+		}
+		return null;
+	}
+
+	@Override
+	public void setCharEncoding(String encoding) {
+		try {
+			Charset.forName(encoding);
+			this.encoding = encoding;
+		} catch (Exception e) {
+			log.warn(e.getMessage() + ", use global charset encoding: "
+					+ config.getRequestCharset());
+			try {
+				Charset.forName(config.getRequestCharset());
+				this.encoding = config.getRequestCharset();
+			} catch (Exception e1) {
+				log.warn(e1.getMessage() + ", use ISO-8859-1 charset encoding");
+				this.encoding = "ISO-8859-1";
+			}
+		}
+
+		// 解析请求体
+		resolveRequest();
+	}
+
+	/**
+	 * 通过输入流获取请求体，解析请求头、参数和cookie<br />
+	 * <br />
+	 * 
 	 * 1. 从请求首行截取method和资源uri<br />
 	 * <br />
 	 * 2. 解析请求头<br />
@@ -59,7 +208,32 @@ public class HttpRequest implements Request {
 	 * @param body
 	 *            - 客户端的请求信息字符串
 	 */
-	public HttpRequest(String body) {
+	public String resolveRequestBody(SocketChannel sChannel) throws IOException {
+
+		// 声明保存客户端请求数据的缓冲区
+		ByteBuffer buf = ByteBuffer.allocate(BUFFER_SIZE);
+		// 读取数据并解析为字符串
+		int len = sChannel.read(buf);
+		if (len > 0) {
+			buf.flip();
+			requestBody = new String(buf.array(), 0, len);
+			buf.clear();
+		}
+		return requestBody;
+	}
+
+	private void resolveRequest() {
+
+		// 请求解码
+		String body = null;
+		try {
+			body = URLDecoder.decode(requestBody, encoding);
+		} catch (UnsupportedEncodingException e) {
+		}
+		// debug
+		if (log.isDebugEnabled()) {
+			log.debug(body);
+		}
 
 		// 所在平台的行分隔符
 		String lineSeparator = System.getProperty("line.separator");
@@ -187,119 +361,5 @@ public class HttpRequest implements Request {
 			}
 		}
 		return map;
-	}
-
-	/**
-	 * 从Host请求头中获取host和port<br />
-	 * <br />
-	 * 
-	 * @author 创建人：xuguofeng
-	 * @version 创建于：2018年9月10日 上午8:13:36
-	 */
-	private void initHostAndPort() {
-		// 获取Hostqing请求头
-		String hostAndPort = this.headers.get("Host");
-		if (!StringUtil.isNullOrEmpty(hostAndPort)) {
-			this.host = hostAndPort.split(":")[0];
-		}
-		if (!StringUtil.isNullOrEmpty(hostAndPort)
-				&& hostAndPort.indexOf(":") > -1) {
-			this.port = Integer.parseInt(hostAndPort.split(":")[1]);
-		}
-	}
-
-	/**
-	 * 根据请求uri后缀获取Content-Type<br />
-	 * <br />
-	 * 
-	 * @author 创建人：xuguofeng
-	 * @version 创建于：2018年9月10日 上午8:15:25
-	 */
-	private void initContentType() {
-		if (this.requestURI.indexOf(".") == -1) {
-			this.contentType = ContentTypeUtil
-					.getContentType(ContentTypeUtil.HTML);
-		} else {
-			String suffix = this.requestURI.substring(this.requestURI
-					.lastIndexOf(".") + 1);
-			this.contentType = ContentTypeUtil.getContentType(suffix);
-		}
-	}
-
-	@Override
-	public String getMethod() {
-		return this.method;
-	}
-
-	@Override
-	public String getRequestURI() {
-		return this.requestURI;
-	}
-
-	@Override
-	public String getProtocol() {
-		return this.protocol;
-	}
-
-	@Override
-	public String getHost() {
-		return this.host;
-	}
-
-	@Override
-	public int getPort() {
-		return this.port;
-	}
-
-	@Override
-	public String getContentType() {
-		return this.contentType;
-	}
-
-	@Override
-	public Map<String, String> getParameters() {
-		return this.parameters;
-	}
-
-	@Override
-	public String getParameter(String paramaterName) {
-		return this.parameters.get(paramaterName);
-	}
-
-	@Override
-	public Map<String, String> getHeaders() {
-		return this.headers;
-	}
-
-	@Override
-	public String getHeader(String headerName) {
-		return this.headers.get(headerName);
-	}
-
-	@Override
-	public List<Cookie> getCookies() {
-		return this.cookies;
-	}
-
-	@Override
-	public Session getSession() {
-		if (session == null) {
-			session = config.getSessionManager().getSession(getSessionId());
-		}
-		session.refreshInactiveTime();
-		log.info(String.format("Now is %s, Session %s expires at %s",
-				System.currentTimeMillis(), session.getId(),
-				session.getInactiveTime()));
-		return session;
-	}
-
-	private String getSessionId() {
-		for (Cookie cookie : cookies) {
-			String name = cookie.getName();
-			if (ResponseUtil.SESSION_ID_KEY.equals(name)) {
-				return cookie.getValue();
-			}
-		}
-		return null;
 	}
 }

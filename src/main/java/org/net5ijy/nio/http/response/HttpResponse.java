@@ -88,7 +88,7 @@ public class HttpResponse implements Response {
 	 * @param isStatic
 	 *            - 是否是静态资源请求
 	 */
-	public HttpResponse(Request req, SocketChannel sChannel, boolean isStatic) {
+	public HttpResponse(Request req, SocketChannel sChannel) {
 
 		sdf.setTimeZone(TimeZone.getTimeZone("GMT"));
 
@@ -104,26 +104,6 @@ public class HttpResponse implements Response {
 		this.out = sChannel;
 
 		this.req = req;
-
-		// 静态资源
-		if (isStatic) {
-			// 获取请求资源URI
-			String uri = req.getRequestURI();
-
-			// 获取本地输入通道
-			getLocalFileChannel(uri);
-
-			// 设置Content-Type
-			setContentType(req.getContentType());
-
-			// 设置静态资源过期响应头
-			int expires = config.getExpiresMillis(this.contentType);
-			if (expires > 0) {
-				long expiresTimeStamp = System.currentTimeMillis() + expires;
-				this.headers.put("Expires",
-						sdf.format(new Date(expiresTimeStamp)));
-			}
-		}
 	}
 
 	/**
@@ -140,11 +120,13 @@ public class HttpResponse implements Response {
 	 *            - 请求的uri
 	 */
 	private void getLocalFileChannel(String uri) {
+
 		// 打开本地文件
 		try {
 
 			// 获取资源文件的Path
 			Path path = Paths.get(config.getRoot(), uri);
+
 			// 获取封装过的文件时间信息
 			FileTime ft = Files.getLastModifiedTime(path,
 					LinkOption.NOFOLLOW_LINKS);
@@ -153,36 +135,37 @@ public class HttpResponse implements Response {
 			String lastModifyDate = sdf.format(new Date(t1));
 
 			// 从请求头获取If-Modified-Since
-			String IfModifiedSince = this.req.getHeader("If-Modified-Since");
+			String IfModifiedSince = req.getHeader("If-Modified-Since");
 
 			// 文件最后修改时间没有变化
 			if (lastModifyDate.equals(IfModifiedSince)) {
 				// 设置304
 				// 设置响应头Last-Modified
-				this.headers.put("Last-Modified", IfModifiedSince);
+				headers.put("Last-Modified", IfModifiedSince);
 				setResponseCode(ResponseUtil.RESPONSE_CODE_304);
 				return; // 返回，不去打开文件通道了
 			}
 
-			this.in = FileChannel.open(path, StandardOpenOption.READ);
+			in = FileChannel.open(path, StandardOpenOption.READ);
 			// 设置Content-Length响应头
 			setHeader("Content-Length", String.valueOf(in.size()));
 
 			// 设置响应头Last-Modified
-			this.headers.put("Last-Modified", lastModifyDate);
+			headers.put("Last-Modified", lastModifyDate);
 
 			// 设置响应状态码200
 			setResponseCode(ResponseUtil.RESPONSE_CODE_200);
+
 		} catch (NoSuchFileException e) {
 			// 没有本地资源被找到
-			log.error("", e);
+			log.error(e.getMessage(), e);
 			// 设置响应状态码404
 			setResponseCode(ResponseUtil.RESPONSE_CODE_404);
 			// 关闭本地文件通道
 			closeLocalFileChannel();
 		} catch (IOException e) {
 			// 打开资源时出现异常
-			log.error("", e);
+			log.error(e.getMessage(), e);
 			// 设置响应状态码500
 			setResponseCode(ResponseUtil.RESPONSE_CODE_500);
 			// 关闭本地文件通道
@@ -214,6 +197,7 @@ public class HttpResponse implements Response {
 	@Override
 	public void response() {
 		try {
+
 			// 输出响应首行
 			writeResponseLine();
 			// 输出Header
@@ -235,21 +219,11 @@ public class HttpResponse implements Response {
 			// 输出响应主体
 			if (in != null && in.size() > 0) {
 				// 输出本地资源
-				long size = in.size();
-				long pos = 0;
-				long count = 0;
-
-				long len = -1;
-
-				while (pos < size) {
-					len = size - pos;
-					count = len > 31457280 ? 31457280 : len;
-					pos += in.transferTo(pos, count, out);
-				}
+				writeLocalResource(in);
 			} else if (html != null) {
 				// 输出模板解析的html文档
 				write(html);
-			} else {
+			} else if (content.length() > 0) {
 				// 输出动态程序解析后的字符串
 				write(content.toString());
 			}
@@ -262,6 +236,35 @@ public class HttpResponse implements Response {
 		} finally {
 			// 关闭本地文件通道
 			closeLocalFileChannel();
+		}
+	}
+
+	/**
+	 * 输出本地资源<br />
+	 * <br />
+	 * 
+	 * @author 创建人：xuguofeng
+	 * @version 创建于：2018年10月23日 上午8:12:40
+	 * @param in
+	 * @throws IOException
+	 */
+	private void writeLocalResource(FileChannel in) throws IOException {
+
+		long size = in.size();
+		long pos = 0;
+		long count = 0;
+
+		long len = -1;
+
+		while (pos < size) {
+			len = size - pos;
+			count = len > 31457280 ? 31457280 : len;
+			try {
+				pos += in.transferTo(pos, count, out);
+			} catch (Exception e) {
+				log.error(e.getMessage(), e);
+				break;
+			}
 		}
 	}
 
@@ -286,7 +289,7 @@ public class HttpResponse implements Response {
 	 * @throws IOException
 	 */
 	private void writeResponseLine() throws IOException {
-		write(ResponseUtil.getResponseLine(this.status));
+		write(ResponseUtil.getResponseLine(status));
 		newLine();
 	}
 
@@ -398,12 +401,6 @@ public class HttpResponse implements Response {
 	}
 
 	@Override
-	@Deprecated
-	public SocketChannel getOut() {
-		return out;
-	}
-
-	@Override
 	public void setHeader(String headerName, String headerValue) {
 		headers.put(headerName, headerValue);
 	}
@@ -444,5 +441,25 @@ public class HttpResponse implements Response {
 		// 解析视图，获取文件输入流
 		ViewResovler resolver = ViewResovler.getViewResovler();
 		html = resolver.resolveView(template, view.getModel());
+	}
+
+	@Override
+	public void initLocalResource() {
+		// 静态资源
+		// 获取请求资源URI
+		String uri = req.getRequestURI();
+
+		// 获取本地输入通道
+		getLocalFileChannel(uri);
+
+		// 设置Content-Type
+		setContentType(req.getContentType());
+
+		// 设置静态资源过期响应头
+		int expires = config.getExpiresMillis(contentType);
+		if (expires > 0) {
+			long expiresTimeStamp = System.currentTimeMillis() + expires;
+			headers.put("Expires", sdf.format(new Date(expiresTimeStamp)));
+		}
 	}
 }

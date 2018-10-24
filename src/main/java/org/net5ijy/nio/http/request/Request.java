@@ -148,4 +148,14 @@ public interface Request {
 	 * @return
 	 */
 	Session getSession();
+
+	/**
+	 * 设置请求体编码方式<br />
+	 * <br />
+	 * 
+	 * @author 创建人：xuguofeng
+	 * @version 创建于：2018年10月23日 上午8:18:40
+	 * @param encoding
+	 */
+	void setCharEncoding(String encoding);
 }

@@ -1,7 +1,6 @@
 package org.net5ijy.nio.http.response;
 
 import java.io.IOException;
-import java.nio.channels.SocketChannel;
 
 import org.net5ijy.nio.http.response.view.View;
 
@@ -98,17 +97,6 @@ public interface Response {
 	void response();
 
 	/**
-	 * 获取当前请求所对应的客户端socket通道<br />
-	 * <br />
-	 * 
-	 * @author 创建人：xuguofeng
-	 * @version 创建于：2018年8月28日 下午3:40:28
-	 * @return SocketChannel - 当前请求所对应的客户端socket通道
-	 */
-	@Deprecated
-	SocketChannel getOut();
-
-	/**
 	 * 把指定的字符串写入响应缓冲区<br />
 	 * <br />
 	 * 
@@ -131,11 +119,21 @@ public interface Response {
 	void println(String line);
 
 	/**
-	 * 渲染动态资源的响应视图
+	 * 渲染动态资源的响应视图<br />
+	 * <br />
 	 * 
 	 * @author 创建人：xuguofeng
 	 * @version 创建于：2018年10月16日 上午9:03:58
 	 * @param view
 	 */
 	void render(View view) throws IOException;
+
+	/**
+	 * 加载本地资源<br />
+	 * <br />
+	 * 
+	 * @author 创建人：xuguofeng
+	 * @version 创建于：2018年10月23日 上午8:33:10
+	 */
+	void initLocalResource();
 }

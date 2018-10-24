@@ -1,11 +1,17 @@
 package org.net5ijy.nio.http.config;
 
 import java.io.IOException;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.TreeSet;
 
+import org.net5ijy.nio.http.ant.AntPathMatcher;
+import org.net5ijy.nio.http.ant.PathMatcher;
+import org.net5ijy.nio.http.filter.Filter;
+import org.net5ijy.nio.http.filter.FilterChain;
 import org.net5ijy.nio.http.servlet.Servlet;
 import org.net5ijy.nio.http.session.MemorySessionManager;
 import org.net5ijy.nio.http.session.SessionManager;
@@ -68,7 +74,23 @@ public class HttpServerConfig {
 	 * URI : Servlet-Class<br />
 	 * <br />
 	 */
-	private Map<String, Class<? extends Servlet>> urlMappings = new HashMap<String, Class<? extends Servlet>>();
+	private Map<String, Servlet> urlMappings = new HashMap<String, Servlet>();
+
+	/**
+	 * URL映射关系信息<br />
+	 * <br />
+	 * URI : Filter-Class<br />
+	 * <br />
+	 */
+	private Map<String, Filter> urlFilterMappings = new HashMap<String, Filter>();
+
+	/**
+	 * URL映射关系信息<br />
+	 * <br />
+	 * URI -&gt; FilterChain<br />
+	 * <br />
+	 */
+	private Map<String, FilterChain> urlChainMappings = new HashMap<String, FilterChain>();
 
 	private SessionManager sessionManager = null;
 
@@ -168,7 +190,7 @@ public class HttpServerConfig {
 	}
 
 	/**
-	 * 添加URL映射<br />
+	 * 添加URL——Servlet映射<br />
 	 * <br />
 	 * 
 	 * @author 创建人：xuguofeng
@@ -176,20 +198,38 @@ public class HttpServerConfig {
 	 * @param key
 	 * @param val
 	 */
-	private void addUrlMapping(String key, String val) {
-		String suffix = key.substring(key.indexOf(".") + 1);
+	private Servlet addUrlMapping(String url, String key, String val) {
 		try {
-			@SuppressWarnings("unchecked")
-			Class<? extends Servlet> clazz = (Class<? extends Servlet>) Class
-					.forName(val);
-			this.urlMappings.put("/" + suffix, clazz);
+			Servlet servlet = (Servlet) Class.forName(val).newInstance();
+			urlMappings.put("/" + url, servlet);
 			// debug
 			if (log.isDebugEnabled()) {
 				log.debug(String.format("Initialize url mapping ok [ %s: %s ]",
-						suffix, val));
+						url, val));
 			}
-		} catch (ClassNotFoundException e) {
-			log.error("", e);
+			return servlet;
+		} catch (Exception e) {
+			log.error(e.getMessage(), e);
+		}
+		return null;
+	}
+
+	/**
+	 * 添加URL——Filter映射<br />
+	 * <br />
+	 * 
+	 * @author 创建人：xuguofeng
+	 * @version 创建于：2018年10月24日 下午3:11:04
+	 * @param key
+	 * @param property
+	 */
+	@SuppressWarnings("unchecked")
+	private void addUrlFilterMapping(String key, String property) {
+		try {
+			Class<Filter> filterClass = (Class<Filter>) Class.forName(property);
+			urlFilterMappings.put(key, filterClass.newInstance());
+		} catch (Exception e) {
+			log.error(e.getMessage(), e);
 		}
 	}
 
@@ -206,9 +246,12 @@ public class HttpServerConfig {
 		for (Object k : keys) {
 			String key = k.toString();
 			if (key.startsWith("expires.")) {
-				this.addExpiresMillis(key, properties.getProperty(key, "0"));
+				addExpiresMillis(key, properties.getProperty(key, "0"));
 			} else if (key.startsWith("servlet.")) {
-				this.addUrlMapping(key, properties.getProperty(key));
+				String url = key.replaceFirst("servlet.", "");
+				addUrlMapping(url, key, properties.getProperty(key));
+			} else if (key.startsWith("filter.")) {
+				addUrlFilterMapping(key, properties.getProperty(key));
 			}
 		}
 	}
@@ -278,7 +321,10 @@ public class HttpServerConfig {
 	}
 
 	/**
-	 * 根据指定的URI获取处理这个请求的Servlet类<br />
+	 * 根据指定的URI获取处理这个请求的Servlet对象<br />
+	 * <br />
+	 * 
+	 * 不再使用，以后使用getFilterChain(requestURI)获取处理请求的过滤器链<br />
 	 * <br />
 	 * 
 	 * @author 创建人：xuguofeng
@@ -287,7 +333,8 @@ public class HttpServerConfig {
 	 *            - 请求uri
 	 * @return
 	 */
-	public Class<? extends Servlet> getServlet(String uri) {
+	@Deprecated
+	public Servlet getServlet(String uri) {
 		return this.urlMappings.get(uri);
 	}
 
@@ -313,5 +360,81 @@ public class HttpServerConfig {
 
 	public String getTemplateDir() {
 		return this.templateDir;
+	}
+
+	/**
+	 * 根据指定的URI获取处理这个请求的过滤器执行链<br />
+	 * <br />
+	 * 
+	 * @author 创建人：xuguofeng
+	 * @version 创建于：2018年8月30日 上午10:50:03
+	 * @param uri
+	 *            - 请求uri
+	 * @return
+	 */
+	public FilterChain getFilterChain(String requestURI) {
+
+		PathMatcher matcher = new AntPathMatcher();
+
+		// 获取处理这个请求的执行链
+		FilterChain chain = this.urlChainMappings.get(requestURI);
+
+		if (chain == null) {
+
+			// 获取处理这个请求的Servlet
+			Servlet servlet = null;
+
+			Set<String> urlMappingKeys = this.urlMappings.keySet();
+			for (String urlMappingKey : urlMappingKeys) {
+				if (matcher.match(urlMappingKey, requestURI)) {
+					servlet = urlMappings.get(urlMappingKey);
+					break;
+				}
+			}
+
+			if (servlet == null) {
+				return null;
+			}
+
+			// 匹配全局filter配置除了ant url之外的前缀
+			String filterRegex = "filter\\.\\d+\\.";
+
+			// 获取可以拦截这个请求的全部Filter
+			TreeSet<String> xx = new TreeSet<String>(new Comparator<String>() {
+				@Override
+				public int compare(String o1, String o2) {
+					return o2.compareTo(o1);
+				}
+			});
+
+			Set<String> urlFilterKeys = this.urlFilterMappings.keySet();
+
+			for (String k : urlFilterKeys) {
+				String antUrl = "/" + k.replaceFirst(filterRegex, "");
+				if (matcher.match(antUrl, requestURI)) {
+					xx.add(k);
+				}
+			}
+
+			// 构建执行链
+			if (!xx.isEmpty()) {
+				FilterChain nextChain = new FilterChain(null, null, servlet);
+				for (String k : xx) {
+					try {
+						Filter filter = this.urlFilterMappings.get(k);
+						chain = new FilterChain(filter, nextChain, servlet);
+						nextChain = chain;
+					} catch (Exception e) {
+						log.error(e.getMessage(), e);
+					}
+				}
+			} else {
+				chain = new FilterChain(null, null, servlet);
+			}
+			this.urlChainMappings.put(requestURI, chain);
+		}
+
+		// 返回执行链
+		return chain;
 	}
 }

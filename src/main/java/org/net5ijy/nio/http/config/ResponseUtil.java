@@ -7,6 +7,10 @@ public class ResponseUtil {
 	 */
 	public static final int RESPONSE_CODE_200 = 200;
 	/**
+	 * 302状态码
+	 */
+	public static final int RESPONSE_CODE_302 = 302;
+	/**
 	 * 304状态码
 	 */
 	public static final int RESPONSE_CODE_304 = 304;
@@ -23,6 +27,10 @@ public class ResponseUtil {
 	 * HTTP/1.1 200 OK
 	 */
 	public static final String RESPONSE_LINE_200 = "HTTP/1.1 200 OK";
+	/**
+	 * HTTP/1.1 302 Temporarily Moved
+	 */
+	public static final String RESPONSE_LINE_302 = "HTTP/1.1 302 Temporarily Moved";
 	/**
 	 * HTTP/1.1 304 Not Modified
 	 */
@@ -78,6 +86,8 @@ public class ResponseUtil {
 		switch (status) {
 		case RESPONSE_CODE_200:
 			return RESPONSE_LINE_200;
+		case RESPONSE_CODE_302:
+			return RESPONSE_LINE_302;
 		case RESPONSE_CODE_304:
 			return RESPONSE_LINE_304;
 		case RESPONSE_CODE_404:
