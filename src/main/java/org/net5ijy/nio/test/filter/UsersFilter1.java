@@ -12,11 +12,11 @@ public class UsersFilter1 implements Filter {
 	public View doFilter(Request request, Response response,
 			FilterChain filterChain) throws Exception {
 
-		System.out.println("进入filter1");
+		System.out.println("进入" + this.getClass().getSimpleName());
 
 		View view = filterChain.doFilter(request, response);
 
-		System.out.println("离开filter1");
+		System.out.println("离开" + this.getClass().getSimpleName());
 
 		return view;
 	}

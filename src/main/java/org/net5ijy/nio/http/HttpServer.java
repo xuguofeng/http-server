@@ -12,6 +12,8 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import org.net5ijy.nio.http.ant.AntPathMatcher;
+import org.net5ijy.nio.http.ant.PathMatcher;
 import org.net5ijy.nio.http.config.HttpServerConfig;
 import org.net5ijy.nio.http.config.ResponseUtil;
 import org.net5ijy.nio.http.filter.FilterChain;
@@ -52,6 +54,8 @@ public class HttpServer {
 
 	// 获取服务器配置
 	HttpServerConfig config = HttpServerConfig.getInstance();
+
+	PathMatcher pathMatcher = new AntPathMatcher();
 
 	/**
 	 * 启动服务器<br />
@@ -190,16 +194,40 @@ public class HttpServer {
 					// 关闭输入
 					sChannel.shutdownInput();
 
-					// 根据uri获取处理请求的Filter链
-					FilterChain chain = config.getFilterChain(req
-							.getRequestURI());
-
-					// 动态请求
-					if (chain != null) {
-						dynamicService(req, resp, chain);
-					} else {
+					// 首先匹配静态资源
+					// 1. /static/**
+					// 2.
+					// ^.*(\\.jpg|\\.jpeg|\\.png|\\.gif|\\.ico|\\.js|\\.css|\\.html|\\.htm)$
+					if (pathMatcher.match(config.getStaticPrefix(),
+							req.getRequestURI())
+							|| req.getRequestURI().matches(
+									config.getStaticSuffix())) {
+						if (log.isDebugEnabled()) {
+							log.debug("Static resource request: "
+									+ req.getRequestURI());
+						}
 						// 静态请求
 						resp.initLocalResource();
+					} else {
+						// 根据uri获取处理请求的Filter链
+						FilterChain chain = config.getFilterChain(req
+								.getRequestURI());
+
+						// 动态请求
+						if (chain != null) {
+							if (log.isDebugEnabled()) {
+								log.debug("dynamic resource request: "
+										+ req.getRequestURI());
+							}
+							dynamicService(req, resp, chain);
+						} else {
+							if (log.isDebugEnabled()) {
+								log.debug("Not dynamic resource request, process as static resource: "
+										+ req.getRequestURI());
+							}
+							// 静态请求
+							resp.initLocalResource();
+						}
 					}
 
 					// 输出响应

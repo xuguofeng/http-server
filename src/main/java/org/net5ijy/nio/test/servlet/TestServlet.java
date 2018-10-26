@@ -15,7 +15,7 @@ public class TestServlet implements Servlet {
 
 		Object user = s.getAttribute("user");
 
-		System.out.println(user);
+		System.out.println(this.getClass().getName() + " - " + user);
 
 		s.setAttribute("user", "user");
 

@@ -96,6 +96,10 @@ public class HttpServerConfig {
 
 	private String templateDir;
 
+	private String staticPrefix = "/static/**";
+
+	private String staticSuffix = "^.*\\.html$";
+
 	private static HttpServerConfig config = new HttpServerConfig();
 
 	/**
@@ -166,6 +170,15 @@ public class HttpServerConfig {
 		if (log.isDebugEnabled()) {
 			log.debug("Initialize template dir: " + this.templateDir);
 		}
+
+		this.staticPrefix = properties.getProperty("server.static.prefix",
+				staticPrefix);
+		this.staticSuffix = properties.getProperty("server.static.suffix",
+				staticSuffix);
+
+		// debug
+		log.info("Initialize static prefix: " + this.staticPrefix);
+		log.info("Initialize static suffix: " + this.staticSuffix);
 	}
 
 	/**
@@ -436,5 +449,13 @@ public class HttpServerConfig {
 
 		// 返回执行链
 		return chain;
+	}
+
+	public String getStaticPrefix() {
+		return this.staticPrefix;
+	}
+
+	public String getStaticSuffix() {
+		return this.staticSuffix;
 	}
 }

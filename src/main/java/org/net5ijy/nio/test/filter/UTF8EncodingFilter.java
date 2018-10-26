@@ -12,13 +12,13 @@ public class UTF8EncodingFilter implements Filter {
 	public View doFilter(Request request, Response response,
 			FilterChain filterChain) throws Exception {
 
-		System.out.println("进入UTF8EncodingFilter");
+		System.out.println("进入" + this.getClass().getSimpleName());
 
 		request.setCharEncoding("utf-8");
 
 		View view = filterChain.doFilter(request, response);
 
-		System.out.println("离开UTF8EncodingFilter");
+		System.out.println("离开" + this.getClass().getSimpleName());
 
 		return view;
 	}
