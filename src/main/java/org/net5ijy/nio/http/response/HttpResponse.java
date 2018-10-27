@@ -106,6 +106,25 @@ public class HttpResponse implements Response {
 		this.req = req;
 	}
 
+	@Override
+	public void initLocalResource() {
+		// 获取请求资源URI
+		String uri = req.getRequestURI();
+
+		// 获取本地输入通道
+		openLocalFileChannel(uri);
+
+		// 设置Content-Type
+		setContentType(req.getContentType());
+
+		// 设置静态资源过期响应头
+		int expires = config.getExpiresMillis(contentType);
+		if (expires > 0) {
+			long expiresTimeStamp = System.currentTimeMillis() + expires;
+			headers.put("Expires", sdf.format(new Date(expiresTimeStamp)));
+		}
+	}
+
 	/**
 	 * 从请求的资源uri获取本地文件输入通道<br />
 	 * <br />
@@ -119,60 +138,67 @@ public class HttpResponse implements Response {
 	 * @param uri
 	 *            - 请求的uri
 	 */
-	private void getLocalFileChannel(String uri) {
+	private void openLocalFileChannel(String uri) {
 
-		// 打开本地文件
 		try {
-
 			// 获取资源文件的Path
 			Path path = Paths.get(config.getRoot(), uri);
 
-			// 获取封装过的文件时间信息
-			FileTime ft = Files.getLastModifiedTime(path,
-					LinkOption.NOFOLLOW_LINKS);
-			// 获取文件最后修改时间的时间戳
-			long t1 = ft.toMillis();
-			String lastModifyDate = sdf.format(new Date(t1));
+			// 检查资源是否修改
+			boolean isModified = isModified(path);
 
-			// 从请求头获取If-Modified-Since
-			String IfModifiedSince = req.getHeader("If-Modified-Since");
-
-			// 文件最后修改时间没有变化
-			if (lastModifyDate.equals(IfModifiedSince)) {
-				// 设置304
-				// 设置响应头Last-Modified
-				headers.put("Last-Modified", IfModifiedSince);
-				setResponseCode(ResponseUtil.RESPONSE_CODE_304);
-				return; // 返回，不去打开文件通道了
+			// 文件被修改了
+			if (isModified) {
+				// 打开本地文件通道
+				in = FileChannel.open(path, StandardOpenOption.READ);
+				// 设置Content-Length响应头
+				setHeader("Content-Length", String.valueOf(in.size()));
+				// 200
+				setResponseCode(ResponseUtil.RESPONSE_CODE_200);
 			}
-
-			in = FileChannel.open(path, StandardOpenOption.READ);
-			// 设置Content-Length响应头
-			setHeader("Content-Length", String.valueOf(in.size()));
-
-			// 设置响应头Last-Modified
-			headers.put("Last-Modified", lastModifyDate);
-
-			// 设置响应状态码200
-			setResponseCode(ResponseUtil.RESPONSE_CODE_200);
-
 		} catch (NoSuchFileException e) {
-			// 没有本地资源被找到
-			log.error(e.getMessage(), e);
-			// 设置响应状态码404
-			setResponseCode(ResponseUtil.RESPONSE_CODE_404);
-			// 关闭本地文件通道
-			closeLocalFileChannel();
+			openLocalResourceError(e, ResponseUtil.RESPONSE_CODE_404);
 		} catch (IOException e) {
-			// 打开资源时出现异常
-			log.error(e.getMessage(), e);
-			// 设置响应状态码500
-			setResponseCode(ResponseUtil.RESPONSE_CODE_500);
-			// 关闭本地文件通道
-			closeLocalFileChannel();
+			openLocalResourceError(e, ResponseUtil.RESPONSE_CODE_500);
 		}
 		// debug
 		log.info(String.format("Request %s is [%s]", uri, status));
+	}
+
+	private boolean isModified(Path path) throws IOException {
+
+		// 获取文件时间信息
+		FileTime ft = Files
+				.getLastModifiedTime(path, LinkOption.NOFOLLOW_LINKS);
+
+		// 获取文件最后修改时间
+		String lastModified = sdf.format(new Date(ft.toMillis()));
+
+		// 从请求头获取If-Modified-Since
+		String IfModifiedSince = req.getHeader("If-Modified-Since");
+
+		// 文件最后修改时间没有变化
+		if (lastModified.equals(IfModifiedSince)) {
+			// 设置304
+			setResponseCode(ResponseUtil.RESPONSE_CODE_304);
+			// 设置Last-Modified
+			headers.put("Last-Modified", IfModifiedSince);
+			return false;
+		}
+
+		// 设置Last-Modified
+		headers.put("Last-Modified", lastModified);
+
+		return true;
+	}
+
+	private void openLocalResourceError(Exception e, int status) {
+		// 没有本地资源被找到
+		log.error(e.getMessage(), e);
+		// 设置响应状态码404
+		setResponseCode(status);
+		// 关闭本地文件通道
+		closeLocalFileChannel();
 	}
 
 	@Override
@@ -207,14 +233,6 @@ public class HttpResponse implements Response {
 
 			// 再输出一个换行，目的是输出一个空白行，下面就是响应主体了
 			newLine();
-
-			// 304
-			if (status == ResponseUtil.RESPONSE_CODE_304) {
-				// debug
-				log.info(String.format("Request handle ok [%s %s %s]",
-						req.getRequestURI(), contentType, status));
-				return;
-			}
 
 			// 输出响应主体
 			if (in != null && in.size() > 0) {
@@ -441,25 +459,5 @@ public class HttpResponse implements Response {
 		// 解析视图，获取文件输入流
 		ViewResovler resolver = ViewResovler.getViewResovler();
 		html = resolver.resolveView(template, view.getModel());
-	}
-
-	@Override
-	public void initLocalResource() {
-		// 静态资源
-		// 获取请求资源URI
-		String uri = req.getRequestURI();
-
-		// 获取本地输入通道
-		getLocalFileChannel(uri);
-
-		// 设置Content-Type
-		setContentType(req.getContentType());
-
-		// 设置静态资源过期响应头
-		int expires = config.getExpiresMillis(contentType);
-		if (expires > 0) {
-			long expiresTimeStamp = System.currentTimeMillis() + expires;
-			headers.put("Expires", sdf.format(new Date(expiresTimeStamp)));
-		}
 	}
 }

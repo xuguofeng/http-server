@@ -13,6 +13,15 @@ import org.net5ijy.nio.http.response.view.View;
 public interface Response {
 
 	/**
+	 * 加载本地资源<br />
+	 * <br />
+	 * 
+	 * @author 创建人：xuguofeng
+	 * @version 创建于：2018年10月23日 上午8:33:10
+	 */
+	void initLocalResource();
+
+	/**
 	 * 设置http响应状态码<br />
 	 * <br />
 	 * 在 {@link org.net5ijy.nio.http.config.ResponseUtil} 中有 RESPONSE_CODE_200 和
@@ -127,13 +136,4 @@ public interface Response {
 	 * @param view
 	 */
 	void render(View view) throws IOException;
-
-	/**
-	 * 加载本地资源<br />
-	 * <br />
-	 * 
-	 * @author 创建人：xuguofeng
-	 * @version 创建于：2018年10月23日 上午8:33:10
-	 */
-	void initLocalResource();
 }
